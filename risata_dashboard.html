@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risata — Dashboard de Ventas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap');
+
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --surface2: #242118;
+    --border: #2e2b24;
+    --accent: #e8c547;
+    --accent2: #c4773a;
+    --peya: #ff6b35;
+    --mostrador: #4ecdc4;
+    --delivery: #95e1d3;
+    --salon: #f38181;
+    --rappi: #a8e6cf;
+    --text: #e8e4d9;
+    --text-muted: #7a7568;
+    --text-dim: #4a4840;
+    --danger: #e05c5c;
+    --good: #6bcb77;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--text-muted); font-weight: 300; font-size: 16px; margin-left: 8px; }
+  .data-note {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    padding: 16px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .tab-group { display: flex; gap: 2px; }
+  .tab {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .tab:first-child { border-radius: 4px 0 0 4px; }
+  .tab:last-child { border-radius: 0 4px 4px 0; }
+  .tab.active { background: var(--accent); color: #0f0e0c; border-color: var(--accent); font-weight: 500; }
+  .tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .separator { width: 1px; height: 24px; background: var(--border); }
+
+  /* ── MAIN LAYOUT ── */
+  main { padding: 24px 40px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .kpi.danger::before { background: var(--danger); }
+  .kpi.good::before { background: var(--good); }
+  .kpi-label { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 26px; color: var(--text); }
+  .kpi-delta {
+    font-size: 11px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .kpi-delta.up { color: var(--good); }
+  .kpi-delta.down { color: var(--danger); }
+  .kpi-sub { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+  /* ── CHART GRID ── */
+  .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+  }
+  .chart-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chart-title strong { color: var(--text); font-size: 13px; text-transform: none; letter-spacing: 0; }
+  .chart-wrap { position: relative; }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #1e1c18;
+    font-size: 12px;
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .bar-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  .delta-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+  .delta-badge.up { background: #1a3320; color: var(--good); }
+  .delta-badge.down { background: #2d1a1a; color: var(--danger); }
+  .delta-badge.neutral { background: var(--surface2); color: var(--text-muted); }
+
+  /* ── CANAL PILLS ── */
+  .canal-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .canal-PedidosYa { background: #3d1f10; color: var(--peya); }
+  .canal-Mostrador { background: #0f2e2c; color: var(--mostrador); }
+  .canal-Delivery { background: #0e2824; color: var(--delivery); }
+  .canal-Salon { background: #2d1a1a; color: var(--salon); }
+  .canal-Rappi { background: #1a2e22; color: var(--rappi); }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    color: var(--text);
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: -8px;
+  }
+
+  /* ── ALERT STRIP ── */
+  .alert-strip {
+    background: #1d1510;
+    border: 1px solid #3d2510;
+    border-radius: 6px;
+    padding: 12px 20px;
+    color: #c47a3a;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .alert-strip::before { content: '▲'; font-size: 10px; }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* ── DIAS HEATMAP ── */
+  .dias-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .dia-cell {
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .dia-name { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+  .dia-val { font-size: 12px; color: var(--text); }
+  .dia-pct { font-size: 10px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Risata <span>Dashboard de Ventas</span></div>
+  <div class="data-note">Datos al 31/05/2026 · Fudo POS · Solo órdenes cerradas</div>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Local</span>
+    <div class="tab-group" id="localTabs">
+      <button class="tab active" data-local="Nueva Cordoba">Nueva Córdoba</button>
+      <button class="tab" data-local="Poeta">Poeta</button>
+      <button class="tab" data-local="Alta Cordoba">Alta Córdoba</button>
+    </div>
+  </div>
+  <div class="separator"></div>
+  <div class="control-group">
+    <span class="control-label">Vista</span>
+    <div class="tab-group" id="viewTabs">
+      <button class="tab active" data-view="resumen">Resumen</button>
+      <button class="tab" data-view="canal">Canal</button>
+      <button class="tab" data-view="pizzas">Pizzas</button>
+      <button class="tab" data-view="combos">Combos</button>
+      <button class="tab" data-view="dias">Días</button>
+    </div>
+  </div>
+  <div class="separator"></div>
+  <div class="control-group">
+    <span class="control-label">Año</span>
+    <select id="anioSelect">
+      <option value="ambos">2025 vs 2026</option>
+      <option value="2025">2025</option>
+      <option value="2026">2026</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Período</span>
+    <select id="periodoSelect">
+      <option value="todo">Todo el período</option>
+      <option value="ene-abr">Ene → Abr</option>
+      <option value="may-ago">May → Ago</option>
+      <option value="sep-dic">Sep → Dic</option>
+    </select>
+  </div>
+  <div class="control-group" id="mesControl" style="display:none">
+    <span class="control-label">Mes</span>
+    <select id="mesSelect">
+      <option value="1">Enero</option>
+      <option value="2">Febrero</option>
+      <option value="3">Marzo</option>
+      <option value="4">Abril</option>
+      <option value="5">Mayo</option>
+      <option value="6">Junio</option>
+      <option value="7">Julio</option>
+      <option value="8">Agosto</option>
+      <option value="9">Septiembre</option>
+      <option value="10">Octubre</option>
+      <option value="11">Noviembre</option>
+      <option value="12">Diciembre</option>
+    </select>
+  </div>
+</div>
+
+<main id="mainContent"></main>
+
+<script src="risata_data.js"></script>
+<script>
+// Datos cargados desde risata_data.js;
+
+// ── STATE ──
+let state = { local: 'Nueva Cordoba', view: 'resumen', anio: 'ambos', periodo: 'todo', mes: null };
+let charts = {};
+
+// ── HELPERS ──
+const $ = id => document.getElementById(id);
+const fmt = n => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n/1e3).toFixed(0)}K` : `$${Math.round(n)}`;
+const fmtFull = n => '$' + Math.round(n).toLocaleString('es-AR');
+const pct = (a,b) => b ? ((a-b)/b*100).toFixed(1) : null;
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+const CANAL_COLORS = {
+  PedidosYa: '#ff6b35',
+  Mostrador: '#4ecdc4',
+  'Delivery propio': '#95e1d3',
+  Salon: '#f38181',
+  Rappi: '#a8e6cf',
+};
+
+function filterData(local, anio, periodo, mes) {
+  let data = RAW[local] || [];
+  const mesRange = {
+    'ene-abr': [1,4], 'may-ago': [5,8], 'sep-dic': [9,12]
+  }[periodo] || null;
+
+  return data.filter(d => {
+    if (anio === '2025' && d.anio !== 2025) return false;
+    if (anio === '2026' && d.anio !== 2026) return false;
+    if (mes !== null && d.mes !== mes) return false;
+    if (!mes && mesRange && (d.mes < mesRange[0] || d.mes > mesRange[1])) return false;
+    return true;
+  });
+}
+
+function sumData(rows) {
+  const out = { ventas: 0, ordenes: 0, canal: {}, pizzas: {}, dias: {}, combos: {} };
+  for (const r of rows) {
+    out.ventas += r.ventas;
+    out.ordenes += r.ordenes;
+    for (const [c,v] of Object.entries(r.canal || {})) {
+      if (!out.canal[c]) out.canal[c] = {ordenes:0, ventas:0};
+      out.canal[c].ordenes += v.ordenes;
+      out.canal[c].ventas += v.ventas;
+    }
+    for (const [p,v] of Object.entries(r.pizzas || {})) {
+      out.pizzas[p] = (out.pizzas[p]||0) + v;
+    }
+    for (const [d,v] of Object.entries(r.dias || {})) {
+      if (!out.dias[d]) out.dias[d] = {ordenes:0, ventas:0};
+      out.dias[d].ordenes += v.ordenes;
+      out.dias[d].ventas += v.ventas;
+    }
+    for (const [c,v] of Object.entries(r.combos || {})) {
+      if (!out.combos[c]) out.combos[c] = {ordenes:0, ventas:0};
+      out.combos[c].ordenes += v.ordenes;
+      out.combos[c].ventas += v.ventas;
+    }
+    out.keto = (out.keto||0) + (r.almendras?.keto||0);
+    out.vegan_alm = (out.vegan_alm||0) + (r.almendras?.vegan||0);
+  }
+  out.ticket = out.ordenes ? out.ventas / out.ordenes : 0;
+  out.total_pizzas = Object.values(out.pizzas).reduce((s,v)=>s+v,0);
+  return out;
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+function makeChart(id, config) {
+  const el = $(id);
+  if (!el) return;
+  const ctx = el.getContext('2d');
+  charts[id] = new Chart(ctx, {
+    ...config,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1814',
+          borderColor: '#2e2b24',
+          borderWidth: 1,
+          titleColor: '#e8e4d9',
+          bodyColor: '#7a7568',
+          callbacks: {
+            label: ctx => `  ${ctx.dataset.label || ''}: ${fmtFull(ctx.parsed.y ?? ctx.parsed)}`,
+          }
+        }
+      },
+      scales: config.type === 'bar' || config.type === 'line' ? {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } }
+      } : {},
+      ...config.options
+    }
+  });
+}
+
+// ── VIEWS ──
+
+function renderResumen() {
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+
+  const showBoth = state.anio === 'ambos';
+  const mainRows = showBoth ? rows26 : filterData(state.local, state.anio, state.periodo, state.mes);
+  const main = sumData(mainRows);
+  const prev = showBoth ? d25 : null;
+
+  const vVar = prev ? pct(main.ventas, prev.ventas) : null;
+  const oVar = prev ? pct(main.ordenes, prev.ordenes) : null;
+  const tVar = prev ? pct(main.ticket, prev.ticket) : null;
+
+  const peyaVentas = main.canal['PedidosYa']?.ventas || 0;
+  const peyaPct = main.ventas ? (peyaVentas/main.ventas*100).toFixed(1) : 0;
+  const peyaPrev = prev?.canal['PedidosYa']?.ventas || 0;
+  const peyaPctPrev = prev?.ventas ? (peyaPrev/prev.ventas*100).toFixed(1) : 0;
+  const peyaDelta = prev ? (parseFloat(peyaPct) - parseFloat(peyaPctPrev)).toFixed(1) : null;
+
+  const deltaClass = v => v === null ? '' : parseFloat(v) >= 0 ? 'up' : 'down';
+  const deltaArrow = v => parseFloat(v) >= 0 ? '↑' : '↓';
+
+  // KPI row
+  const kpiPeya = parseFloat(peyaPct) >= 50 ? 'danger' : parseFloat(peyaPct) >= 45 ? '' : 'good';
+
+  let html = `
+  <div class="kpi-row">
+    <div class="kpi ${vVar && parseFloat(vVar) >= 0 ? 'good' : vVar ? 'danger' : ''}">
+      <div class="kpi-label">Ventas ${showBoth ? '2026' : state.anio}</div>
+      <div class="kpi-value">${fmt(main.ventas)}</div>
+      ${vVar ? `<div class="kpi-delta ${deltaClass(vVar)}">${deltaArrow(vVar)} ${Math.abs(vVar)}% vs 2025 (${fmt(prev.ventas)})</div>` : `<div class="kpi-sub">${fmtFull(main.ventas)}</div>`}
+    </div>
+    <div class="kpi ${oVar && parseFloat(oVar) >= 0 ? 'good' : oVar ? 'danger' : ''}">
+      <div class="kpi-label">Órdenes ${showBoth ? '2026' : state.anio}</div>
+      <div class="kpi-value">${main.ordenes.toLocaleString('es-AR')}</div>
+      ${oVar ? `<div class="kpi-delta ${deltaClass(oVar)}">${deltaArrow(oVar)} ${Math.abs(oVar)}% vs ${prev.ordenes.toLocaleString('es-AR')} en 2025</div>` : ''}
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket promedio</div>
+      <div class="kpi-value">${fmtFull(main.ticket)}</div>
+      ${tVar ? `<div class="kpi-delta ${deltaClass(tVar)}">${deltaArrow(tVar)} ${Math.abs(tVar)}% vs ${fmtFull(prev.ticket)} en 2025</div>` : ''}
+    </div>
+    <div class="kpi ${kpiPeya}">
+      <div class="kpi-label">PedidosYa % ventas</div>
+      <div class="kpi-value">${peyaPct}%</div>
+      ${peyaDelta !== null ? `<div class="kpi-delta ${parseFloat(peyaDelta) > 0 ? 'down' : 'up'}">${parseFloat(peyaDelta) > 0 ? '↑' : '↓'} ${Math.abs(peyaDelta)}pp vs ${peyaPctPrev}% en 2025</div>` : `<div class="kpi-sub">${fmtFull(peyaVentas)} en ventas</div>`}
+    </div>
+  </div>`;
+
+  // PeYa alert if >50%
+  if (parseFloat(peyaPct) > 50) {
+    html += `<div class="alert-strip">PedidosYa supera el 50% de ventas — canal propio (Mostrador + Delivery) por debajo del 50%.</div>`;
+  }
+
+  // Monthly chart
+  const allRows = [...rows25, ...rows26].sort((a,b) => a.periodo.localeCompare(b.periodo));
+  const labels25 = rows25.map(r => MESES[r.mes]);
+  const labels26 = rows26.map(r => MESES[r.mes]);
+
+  html += `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Ventas mensuales</span></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartVentas"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Ticket promedio mensual</span></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartTicket"></canvas></div>
+    </div>
+  </div>`;
+
+  html += `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Órdenes mensuales</span></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartOrdenes"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>% PedidosYa (ventas)</span></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartPeya"></canvas></div>
+    </div>
+  </div>`;
+
+  $('mainContent').innerHTML = html;
+
+  // Chart: ventas
+  if (showBoth) {
+    makeChart('chartVentas', {
+      type: 'bar',
+      data: {
+        labels: labels25.length >= labels26.length ? labels25 : labels26,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ventas), backgroundColor: '#2e2b24', borderColor: '#4a4840', borderWidth: 1 },
+          { label: '2026', data: rows26.map(r=>r.ventas), backgroundColor: '#e8c547', borderColor: '#e8c547', borderWidth: 0 },
+        ]
+      },
+      options: { plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } } }
+    });
+    makeChart('chartOrdenes', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ordenes), borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: rows26.map(r=>r.ordenes), borderColor: '#e8c547', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+    makeChart('chartTicket', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ticket), borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: rows26.map(r=>r.ticket), borderColor: '#c4773a', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmtFull(v) } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+    const peya25 = rows25.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    const peya26 = rows26.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    makeChart('chartPeya', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: peya25, borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: peya26, borderColor: '#ff6b35', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => v + '%' } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+  } else {
+    const rows = mainRows;
+    const labels = rows.map(r => MESES[r.mes]);
+    makeChart('chartVentas', { type: 'bar', data: { labels, datasets: [{ label: 'Ventas', data: rows.map(r=>r.ventas), backgroundColor: '#e8c547' }] } });
+    makeChart('chartOrdenes', { type: 'bar', data: { labels, datasets: [{ label: 'Órdenes', data: rows.map(r=>r.ordenes), backgroundColor: '#4ecdc4' }] } });
+    makeChart('chartTicket', { type: 'line', data: { labels, datasets: [{ label: 'Ticket', data: rows.map(r=>r.ticket), borderColor: '#c4773a', backgroundColor: 'transparent', tension: 0.3 }] }, options: { scales: { y: { ticks: { callback: v => fmtFull(v) } } } } });
+    const peya = rows.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    makeChart('chartPeya', { type: 'line', data: { labels, datasets: [{ label: '%PeYa', data: peya, borderColor: '#ff6b35', backgroundColor: 'transparent', tension: 0.3 }] }, options: { scales: { y: { ticks: { callback: v => v + '%' } } } } });
+  }
+}
+
+function renderCanal() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  const canales = Object.keys({...d25.canal, ...d26.canal}).sort((a,b) => (main.canal[b]?.ventas||0) - (main.canal[a]?.ventas||0));
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Mix de canal — ventas</span></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chartCanalLine"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Distribución ${anio === 'ambos' ? '2026' : anio}</span></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chartCanalDona"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle por canal ${anio === 'ambos' ? '(comparación 2025 vs 2026)' : anio}</div>
+    <table>
+      <thead><tr>
+        <th>Canal</th>
+        <th class="right">Órdenes</th>
+        <th class="right">Ventas</th>
+        <th class="right">% Ventas</th>
+        <th class="right">Ticket</th>
+        ${prev ? '<th class="right">Δ Ventas</th>' : ''}
+      </tr></thead><tbody>`;
+
+  for (const c of canales) {
+    const cv = main.canal[c] || {ordenes:0, ventas:0};
+    const pv = prev?.canal[c] || {ordenes:0, ventas:0};
+    const pctV = main.ventas ? (cv.ventas/main.ventas*100).toFixed(1) : 0;
+    const tick = cv.ordenes ? cv.ventas/cv.ordenes : 0;
+    const delta = prev ? pct(cv.ventas, pv.ventas) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td><span class="canal-pill canal-${c.replace(' ','')}">${c}</span></td>
+      <td class="right">${cv.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right">${fmtFull(cv.ventas)}</td>
+      <td class="right">${pctV}%</td>
+      <td class="right">${fmtFull(tick)}</td>
+      ${prev ? `<td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+
+  // Monthly canal evolution chart data
+  const allRows = anio === 'ambos' ? [...rows25, ...rows26].sort((a,b) => a.periodo.localeCompare(b.periodo))
+                : filterData(state.local, anio, state.periodo, state.mes);
+  const labels = allRows.map(r => (anio === 'ambos' ? r.anio + ' ' : '') + MESES[r.mes]);
+
+  $('mainContent').innerHTML = html;
+
+  // Stacked bar canal evolution
+  const datasets = canales.map(c => ({
+    label: c,
+    data: allRows.map(r => r.canal[c]?.ventas || 0),
+    backgroundColor: CANAL_COLORS[c] || '#555',
+  }));
+
+  makeChart('chartCanalLine', {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${fmt(ctx.raw)}` } } },
+      scales: {
+        x: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 } } },
+        y: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } }
+      }
+    }
+  });
+
+  // Donut
+  makeChart('chartCanalDona', {
+    type: 'doughnut',
+    data: {
+      labels: canales,
+      datasets: [{ data: canales.map(c => main.canal[c]?.ventas || 0), backgroundColor: canales.map(c => CANAL_COLORS[c] || '#555'), borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${fmt(ctx.raw)} (${(ctx.raw/main.ventas*100).toFixed(1)}%)` } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function renderPizzas() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  const allPizzas = Object.keys({...d25.pizzas, ...d26.pizzas})
+    .filter(p => !['Vegano - Pan de Ajo','Vegano - Pan de ajo','margarita evento','muzza porteña','jamon y queso porteña','fuga porteña'].includes(p))
+    .sort((a,b) => (main.pizzas[b]||0) - (main.pizzas[a]||0))
+    .slice(0, 12);
+
+  const totalMain = Object.values(main.pizzas).reduce((s,v)=>s+v,0);
+  const totalPrev = prev ? Object.values(prev.pizzas).reduce((s,v)=>s+v,0) : 0;
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Ranking de pizzas — unidades</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartPizzasBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Margarita — evolución mensual</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartMarga"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle por variedad ${prev ? '(2025 vs 2026)' : anio}</div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Pizza</th>
+        <th class="right">Unidades ${anio === 'ambos' ? '2026' : anio}</th>
+        <th class="right">% del total</th>
+        ${prev ? '<th class="right">Unidades 2025</th><th class="right">Δ</th>' : ''}
+      </tr></thead><tbody>`;
+
+  allPizzas.forEach((p, i) => {
+    const v = main.pizzas[p] || 0;
+    const pv = prev?.pizzas[p] || 0;
+    const pctV = totalMain ? (v/totalMain*100).toFixed(1) : 0;
+    const delta = prev && pv > 0 ? pct(v, pv) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td>${p}</td>
+      <td class="right">${v.toLocaleString('es-AR')}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%"></div></div>${pctV}%</div></td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${pv.toLocaleString('es-AR')}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+
+  // Bar chart
+  const allRows = anio === 'ambos' ? [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo))
+    : filterData(state.local, anio, state.periodo, state.mes);
+
+  makeChart('chartPizzasBar', {
+    type: 'bar',
+    data: {
+      labels: allPizzas,
+      datasets: prev ? [
+        { label: '2025', data: allPizzas.map(p => d25.pizzas[p]||0), backgroundColor: '#2e2b24' },
+        { label: '2026', data: allPizzas.map(p => d26.pizzas[p]||0), backgroundColor: '#e8c547' },
+      ] : [
+        { label: 'Unidades', data: allPizzas.map(p => main.pizzas[p]||0), backgroundColor: '#e8c547' }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw.toLocaleString('es-AR')} unid.` } } },
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#e8e4d9', font: { family: 'DM Mono', size: 10 } } }
+      }
+    }
+  });
+
+  // Margarita evolution
+  const margaRows = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  makeChart('chartMarga', {
+    type: 'line',
+    data: {
+      labels: margaRows.map(r => r.anio + ' ' + MESES[r.mes]),
+      datasets: [{
+        label: 'Margarita',
+        data: margaRows.map(r => r.pizzas['Margarita'] || 0),
+        borderColor: '#e8c547',
+        backgroundColor: 'rgba(232,197,71,0.07)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }
+      },
+      plugins: { tooltip: { callbacks: { label: ctx => `  Margaritas: ${ctx.raw}` } } }
+    }
+  });
+
+  // Almendras section
+  const totalPizzas = main.total_pizzas || 1;
+  const ketoN = main.keto || 0;
+  const veganN = main.vegan_alm || 0;
+  const ketoP = (ketoN/totalPizzas*100).toFixed(1);
+  const veganP = (veganN/totalPizzas*100).toFixed(1);
+  const almTotal = ketoN + veganN;
+  const almP = (almTotal/totalPizzas*100).toFixed(1);
+  const prevKetoP = prev ? ((prev.keto||0)/Math.max(prev.total_pizzas||1,1)*100).toFixed(1) : null;
+  const prevVeganP = prev ? ((prev.vegan_alm||0)/Math.max(prev.total_pizzas||1,1)*100).toFixed(1) : null;
+
+  const almDiv = document.createElement('div');
+  almDiv.innerHTML = `
+  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-top:16px;margin-bottom:16px">
+    <div class="kpi" style="border-top-color:var(--accent2)">
+      <div class="kpi-label">Keto — masa almendras</div>
+      <div class="kpi-value">${ketoN.toLocaleString('es-AR')}</div>
+      <div class="kpi-sub">${ketoP}% del total${prevKetoP !== null ? ` · era ${prevKetoP}% en 2025` : ''}</div>
+    </div>
+    <div class="kpi" style="border-top-color:var(--mostrador)">
+      <div class="kpi-label">Vegana — muzz almendras</div>
+      <div class="kpi-value">${veganN.toLocaleString('es-AR')}</div>
+      <div class="kpi-sub">${veganP}% del total${prevVeganP !== null ? ` · era ${prevVeganP}% en 2025` : ''}</div>
+    </div>
+    <div class="kpi good">
+      <div class="kpi-label">Total almendras (ambas)</div>
+      <div class="kpi-value">${almTotal.toLocaleString('es-AR')}</div>
+      <div class="kpi-sub">${almP}% de las pizzas — lanzadas ago 2025</div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title"><span>Almendras — % del total de pizzas por mes (apilado)</span></div>
+    <div class="chart-wrap" style="height:180px"><canvas id="chartAlmendras"></canvas></div>
+  </div>`;
+  $('mainContent').appendChild(almDiv);
+
+  const almRows2 = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const almLabels = almRows2.map(r => (r.anio===2026?'26 ':'25 ') + MESES[r.mes]);
+  const getAlmPct = (r, tipo) => {
+    const tp = Object.values(r.pizzas||{}).reduce((s,v)=>s+v,0);
+    return tp > 0 ? +((r.almendras?.[tipo]||0)/tp*100).toFixed(1) : 0;
+  };
+  makeChart('chartAlmendras', {
+    type: 'bar',
+    data: {
+      labels: almLabels,
+      datasets: [
+        { label: 'Keto (masa)', data: almRows2.map(r=>getAlmPct(r,'keto')), backgroundColor: '#c4773a', stack: 'alm' },
+        { label: 'Vegana almendras', data: almRows2.map(r=>getAlmPct(r,'vegan')), backgroundColor: '#4ecdc4', stack: 'alm' },
+      ]
+    },
+    options: {
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw}%` } }
+      },
+      scales: {
+        x: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
+        y: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+function renderDias() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  const DIAS_ORDER = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+  const totalMain = Object.values(main.dias).reduce((s,v)=>s+v.ventas,0);
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card" style="grid-column:1/-1">
+      <div class="chart-title"><span>Ventas por día de la semana</span></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartDias"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle por día ${prev ? '(2025 vs 2026)' : anio}</div>
+    <table>
+      <thead><tr>
+        <th>Día</th>
+        <th class="right">Ventas ${anio === 'ambos' ? '2026' : anio}</th>
+        <th class="right">% semana</th>
+        <th class="right">Órdenes</th>
+        <th class="right">Ticket</th>
+        ${prev ? '<th class="right">Ventas 2025</th><th class="right">Δ</th>' : ''}
+      </tr></thead><tbody>`;
+
+  for (const d of DIAS_ORDER) {
+    const dv = main.dias[d] || {ordenes:0, ventas:0};
+    const pv = prev?.dias[d] || {ordenes:0, ventas:0};
+    const pctV = totalMain ? (dv.ventas/totalMain*100).toFixed(1) : 0;
+    const tick = dv.ordenes ? dv.ventas/dv.ordenes : 0;
+    const delta = prev && pv.ventas > 0 ? pct(dv.ventas, pv.ventas) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td style="font-weight:500">${d}</td>
+      <td class="right">${fmtFull(dv.ventas)}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:var(--accent2)"></div></div>${pctV}%</div></td>
+      <td class="right">${dv.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right">${fmtFull(tick)}</td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${fmtFull(pv.ventas)}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+
+  makeChart('chartDias', {
+    type: 'bar',
+    data: {
+      labels: DIAS_ORDER,
+      datasets: prev ? [
+        { label: '2025', data: DIAS_ORDER.map(d => d25.dias[d]?.ventas || 0), backgroundColor: '#2e2b24' },
+        { label: '2026', data: DIAS_ORDER.map(d => d26.dias[d]?.ventas || 0), backgroundColor: '#c4773a' },
+      ] : [
+        { label: 'Ventas', data: DIAS_ORDER.map(d => main.dias[d]?.ventas || 0), backgroundColor: '#c4773a' }
+      ]
+    },
+    options: {
+      plugins: { legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } } }
+    }
+  });
+}
+
+function renderCombos() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  // Normalize combo names: merge variants (combo Margarita + Diavola / Margarita + Diavola)
+  const NORMALIZE_COMBO = {
+    'combo margarita + diavola': 'Margarita + Diavola',
+    'margarita + diavola': 'Margarita + Diavola',
+    'combo marga para 2': 'Combo Margarita para dos',
+    'mosca 2x1 marga': 'Marga Mosca 2x1',
+    'marga mosca 2x1': 'Marga Mosca 2x1',
+    'jamon & queso + la nuestra': 'Jamon & Queso + La Nuestra',
+    'jamon y queso + la nuestra': 'Jamon & Queso + La Nuestra',
+    'combo piegata especial': 'COMBO PIEGATA ESPECIAL',
+  };
+
+  function normalizeCombos(raw) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const key = NORMALIZE_COMBO[k.toLowerCase()] || k;
+      if (!out[key]) out[key] = {ordenes:0, ventas:0};
+      out[key].ordenes += v.ordenes;
+      out[key].ventas += v.ventas;
+    }
+    return out;
+  }
+
+  const mainCombos = normalizeCombos(main.combos);
+  const prevCombos = prev ? normalizeCombos(prev.combos) : null;
+
+  const sorted = Object.entries(mainCombos).sort((a,b) => b[1].ventas - a[1].ventas);
+  const top12 = sorted.slice(0, 12);
+  const totalVentas = sorted.reduce((s,[,v]) => s+v.ventas, 0);
+  const totalOrdenes = sorted.reduce((s,[,v]) => s+v.ordenes, 0);
+
+  // Monthly evolution for top 3 combos
+  const allRows = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const top3 = top12.slice(0,3).map(([k]) => k);
+
+  const COMBO_COLORS = ['#e8c547','#ff6b35','#4ecdc4','#f38181','#95e1d3','#c4773a'];
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Top combos — facturación ${anio === 'ambos' ? '2026' : anio}</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartCombosBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Evolución mensual — top 3 combos (órdenes)</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartCombosEvol"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle de combos ${prev ? '(2025 vs 2026)' : anio} — Total ${totalOrdenes.toLocaleString('es-AR')} órdenes · ${fmtFull(totalVentas)}</div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Combo</th>
+        <th class="right">Órdenes</th>
+        <th class="right">Ventas ($)</th>
+        <th class="right">% ventas</th>
+        <th class="right">Ticket prom.</th>
+        ${prev ? '<th class="right">Órd. 2025</th><th class="right">Δ órd.</th>' : ''}
+      </tr></thead><tbody>`;
+
+  top12.forEach(([name, val], i) => {
+    const pv = prevCombos?.[name] || {ordenes:0, ventas:0};
+    const pctV = totalVentas ? (val.ventas/totalVentas*100).toFixed(1) : 0;
+    const ticket = val.ordenes ? val.ventas/val.ordenes : 0;
+    const delta = prev && pv.ordenes > 0 ? pct(val.ordenes, pv.ordenes) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td>${name}</td>
+      <td class="right">${val.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right">${fmtFull(val.ventas)}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:#e8c547"></div></div>${pctV}%</div></td>
+      <td class="right">${fmtFull(ticket)}</td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${pv.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+
+  // Bar chart combos
+  makeChart('chartCombosBar', {
+    type: 'bar',
+    data: {
+      labels: top12.map(([k]) => k.length > 28 ? k.slice(0,27)+'…' : k),
+      datasets: prev ? [
+        { label: '2025', data: top12.map(([k]) => prevCombos?.[k]?.ventas||0), backgroundColor: '#2e2b24' },
+        { label: '2026', data: top12.map(([,v]) => v.ventas), backgroundColor: '#e8c547' },
+      ] : [
+        { label: 'Ventas', data: top12.map(([,v]) => v.ventas), backgroundColor: '#e8c547' }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${fmtFull(ctx.raw)}` } }
+      },
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#e8e4d9', font: { family: 'DM Mono', size: 9 } } }
+      }
+    }
+  });
+
+  // Evol chart top 3
+  const NORM_MAP = {};
+  for (const [k,v] of Object.entries(NORMALIZE_COMBO)) NORM_MAP[k] = v;
+
+  function getComboOrdenes(row, comboName) {
+    let total = 0;
+    for (const [k,v] of Object.entries(row.combos||{})) {
+      const norm = NORM_MAP[k.toLowerCase()] || k;
+      if (norm === comboName) total += v.ordenes;
+    }
+    return total;
+  }
+
+  const evolLabels = allRows.map(r => (r.anio === 2026 ? '26 ' : '25 ') + MESES[r.mes]);
+  makeChart('chartCombosEvol', {
+    type: 'line',
+    data: {
+      labels: evolLabels,
+      datasets: top3.map((name, i) => ({
+        label: name.length > 25 ? name.slice(0,24)+'…' : name,
+        data: allRows.map(r => getComboOrdenes(r, name)),
+        borderColor: COMBO_COLORS[i],
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 3,
+      }))
+    },
+    options: {
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw} órd.` } }
+      },
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }
+      }
+    }
+  });
+}
+
+function render() {
+  destroyCharts();
+  const views = { resumen: renderResumen, canal: renderCanal, pizzas: renderPizzas, combos: renderCombos, dias: renderDias };
+  (views[state.view] || renderResumen)();
+}
+
+// ── EVENT LISTENERS ──
+document.querySelectorAll('#localTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#localTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.local = t.dataset.local;
+    render();
+  });
+});
+
+document.querySelectorAll('#viewTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#viewTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.view = t.dataset.view;
+    render();
+  });
+});
+
+$('anioSelect').addEventListener('change', e => {
+  state.anio = e.target.value;
+  // Show mes selector only when single year
+  const mesCtrl = $('mesControl');
+  if (state.anio !== 'ambos') {
+    mesCtrl.style.display = 'flex';
+  } else {
+    mesCtrl.style.display = 'none';
+    state.mes = null;
+    $('mesSelect').value = '1';
+  }
+  render();
+});
+
+$('periodoSelect').addEventListener('change', e => {
+  state.periodo = e.target.value;
+  state.mes = null;
+  render();
+});
+
+$('mesSelect').addEventListener('change', e => {
+  state.mes = e.target.value ? parseInt(e.target.value) : null;
+  render();
+});
+
+// Add "Todos los meses" option dynamically
+const mesEl = $('mesSelect');
+const allOpt = document.createElement('option');
+allOpt.value = '';
+allOpt.textContent = 'Todos los meses';
+mesEl.insertBefore(allOpt, mesEl.firstChild);
+mesEl.value = '';
+
+render();
+</script>
+</body>
+</html>
