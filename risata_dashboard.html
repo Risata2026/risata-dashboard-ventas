@@ -300,7 +300,7 @@
     <div class="tab-group" id="viewTabs">
       <button class="tab active" data-view="resumen">Resumen</button>
       <button class="tab" data-view="canal">Canal</button>
-      <button class="tab" data-view="pizzas">Pizzas</button>
+      <button class="tab" data-view="productos">Productos</button>
       <button class="tab" data-view="combos">Combos</button>
       <button class="tab" data-view="dias">Días</button>
     </div>
@@ -355,9 +355,12 @@ let charts = {};
 const $ = id => document.getElementById(id);
 const fmt = n => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n/1e3).toFixed(0)}K` : `$${Math.round(n)}`;
 const fmtFull = n => '$' + Math.round(n).toLocaleString('es-AR');
+const fmtN = fmtFull;
+const fmtU = n => Math.round(n).toLocaleString('es-AR');
 const pct = (a,b) => b ? ((a-b)/b*100).toFixed(1) : null;
 const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+const RUBRO_COLORS = {Pizzas:'#e8c547','Pizzas Veganas':'#95e1d3',Combos:'#c4773a',Piegatas:'#f38181',Focaccias:'#4ecdc4',Antipasti:'#a8e6cf',Cervezas:'#ff6b35',Postres:'#6bcb77','Gaseosas y Aguas':'#7a7568',Tragos:'#b8a0ff',Dips:'#ffb347',Congeladas:'#87ceeb',Paninos:'#d4a5f5'};
 const CANAL_COLORS = {
   PedidosYa: '#ff6b35',
   Mostrador: '#4ecdc4',
@@ -382,7 +385,7 @@ function filterData(local, anio, periodo, mes) {
 }
 
 function sumData(rows) {
-  const out = { ventas: 0, ordenes: 0, canal: {}, pizzas: {}, dias: {}, combos: {} };
+  const out = { ventas: 0, ordenes: 0, canal: {}, pizzas: {}, dias: {}, combos: {}, rubros: {} };
   for (const r of rows) {
     out.ventas += r.ventas;
     out.ordenes += r.ordenes;
@@ -403,6 +406,11 @@ function sumData(rows) {
       if (!out.combos[c]) out.combos[c] = {ordenes:0, ventas:0};
       out.combos[c].ordenes += v.ordenes;
       out.combos[c].ventas += v.ventas;
+    }
+    for (const [rk,v] of Object.entries(r.rubros || {})) {
+      if (!out.rubros[rk]) out.rubros[rk] = {cantidad:0, ventas:0};
+      out.rubros[rk].cantidad += v.cantidad;
+      out.rubros[rk].ventas += v.ventas;
     }
     out.keto = (out.keto||0) + (r.almendras?.keto||0);
     out.vegan_alm = (out.vegan_alm||0) + (r.almendras?.vegan||0);
@@ -698,7 +706,7 @@ function renderCanal() {
   });
 }
 
-function renderPizzas() {
+function renderProductos() {
   const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
   const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
   const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
@@ -707,232 +715,126 @@ function renderPizzas() {
   const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
   const prev = anio === 'ambos' ? d25 : null;
 
-  const allPizzas = Object.keys({...d25.pizzas, ...d26.pizzas})
-    .filter(p => !['Vegano - Pan de Ajo','Vegano - Pan de ajo','margarita evento','muzza porteña','jamon y queso porteña','fuga porteña'].includes(p))
-    .sort((a,b) => (main.pizzas[b]||0) - (main.pizzas[a]||0))
-    .slice(0, 12);
-
-  const totalMain = Object.values(main.pizzas).reduce((s,v)=>s+v,0);
-  const totalPrev = prev ? Object.values(prev.pizzas).reduce((s,v)=>s+v,0) : 0;
-
-  let html = `<div class="chart-grid">
-    <div class="chart-card">
-      <div class="chart-title"><span>Ranking de pizzas — unidades</span></div>
-      <div class="chart-wrap" style="height:280px"><canvas id="chartPizzasBar"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title"><span>Margarita — evolución mensual</span></div>
-      <div class="chart-wrap" style="height:280px"><canvas id="chartMarga"></canvas></div>
-    </div>
-  </div>
-  <div class="table-card">
-    <div class="table-header">Detalle por variedad ${prev ? '(2025 vs 2026)' : anio}</div>
-    <table>
-      <thead><tr>
-        <th>#</th><th>Pizza</th>
-        <th class="right">Unidades ${anio === 'ambos' ? '2026' : anio}</th>
-        <th class="right">% del total</th>
-        ${prev ? '<th class="right">Unidades 2025</th><th class="right">Δ</th>' : ''}
-      </tr></thead><tbody>`;
-
-  allPizzas.forEach((p, i) => {
-    const v = main.pizzas[p] || 0;
-    const pv = prev?.pizzas[p] || 0;
-    const pctV = totalMain ? (v/totalMain*100).toFixed(1) : 0;
-    const delta = prev && pv > 0 ? pct(v, pv) : null;
-    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
-    html += `<tr>
-      <td style="color:var(--text-muted)">${i+1}</td>
-      <td>${p}</td>
-      <td class="right">${v.toLocaleString('es-AR')}</td>
-      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%"></div></div>${pctV}%</div></td>
-      ${prev ? `<td class="right" style="color:var(--text-muted)">${pv.toLocaleString('es-AR')}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
-    </tr>`;
-  });
-
-  html += `</tbody></table></div>`;
-  $('mainContent').innerHTML = html;
-
-  // Bar chart
-  const allRows = anio === 'ambos' ? [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo))
-    : filterData(state.local, anio, state.periodo, state.mes);
-
-  makeChart('chartPizzasBar', {
-    type: 'bar',
-    data: {
-      labels: allPizzas,
-      datasets: prev ? [
-        { label: '2025', data: allPizzas.map(p => d25.pizzas[p]||0), backgroundColor: '#2e2b24' },
-        { label: '2026', data: allPizzas.map(p => d26.pizzas[p]||0), backgroundColor: '#e8c547' },
-      ] : [
-        { label: 'Unidades', data: allPizzas.map(p => main.pizzas[p]||0), backgroundColor: '#e8c547' }
-      ]
-    },
-    options: {
-      indexAxis: 'y',
-      plugins: { legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw.toLocaleString('es-AR')} unid.` } } },
-      scales: {
-        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } },
-        y: { grid: { color: '#1e1c18' }, ticks: { color: '#e8e4d9', font: { family: 'DM Mono', size: 10 } } }
-      }
-    }
-  });
-
-  // Margarita evolution
-  const margaRows = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
-  makeChart('chartMarga', {
-    type: 'line',
-    data: {
-      labels: margaRows.map(r => r.anio + ' ' + MESES[r.mes]),
-      datasets: [{
-        label: 'Margarita',
-        data: margaRows.map(r => r.pizzas['Margarita'] || 0),
-        borderColor: '#e8c547',
-        backgroundColor: 'rgba(232,197,71,0.07)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-      }]
-    },
-    options: {
-      scales: {
-        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
-        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }
-      },
-      plugins: { tooltip: { callbacks: { label: ctx => `  Margaritas: ${ctx.raw}` } } }
-    }
-  });
-
-  // Almendras section
-  const totalPizzas = main.total_pizzas || 1;
+  const totalPizzas = main.total_pizzas || 0;
+  const totalPizzasPrev = prev?.total_pizzas || 0;
   const ketoN = main.keto || 0;
   const veganN = main.vegan_alm || 0;
-  const ketoP = (ketoN/totalPizzas*100).toFixed(1);
-  const veganP = (veganN/totalPizzas*100).toFixed(1);
   const almTotal = ketoN + veganN;
-  const almP = (almTotal/totalPizzas*100).toFixed(1);
-  const prevKetoP = prev ? ((prev.keto||0)/Math.max(prev.total_pizzas||1,1)*100).toFixed(1) : null;
-  const prevVeganP = prev ? ((prev.vegan_alm||0)/Math.max(prev.total_pizzas||1,1)*100).toFixed(1) : null;
+  const almPct = totalPizzas ? (almTotal/totalPizzas*100).toFixed(1) : 0;
+  const almPctPrev = totalPizzasPrev ? (((prev.keto||0)+(prev.vegan_alm||0))/totalPizzasPrev*100).toFixed(1) : null;
 
-  const almDiv = document.createElement('div');
-  almDiv.innerHTML = `
-  <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);margin-top:16px;margin-bottom:16px">
-    <div class="kpi" style="border-top-color:var(--accent2)">
+  // Rubros sorted by ventas, excluding noise
+  const rubros = Object.entries(main.rubros)
+    .filter(([r]) => !['Productos','Otros'].includes(r))
+    .sort((a,b) => b[1].ventas - a[1].ventas);
+  const totalVentas = rubros.reduce((s,[,v]) => s+v.ventas, 0);
+
+  const SKIP_PIZZA = ['Vegano - Pan de Ajo','Vegano - Pan de ajo','margarita evento','muzza porteña','jamon y queso porteña','fuga porteña'];
+  const topPizzas = Object.entries(main.pizzas)
+    .filter(([p]) => !SKIP_PIZZA.includes(p))
+    .sort((a,b) => b[1]-a[1]).slice(0, 12);
+
+  const vDelta = prev && totalPizzasPrev ? pct(totalPizzas, totalPizzasPrev) : null;
+
+  let html = `
+  <div class="kpi-row">
+    <div class="kpi good">
+      <div class="kpi-label">Total pizzas vendidas</div>
+      <div class="kpi-value">${fmtU(totalPizzas)}</div>
+      ${vDelta !== null ? `<div class="kpi-delta ${parseFloat(vDelta)>=0?'up':'down'}">${parseFloat(vDelta)>=0?'↑':'↓'} ${Math.abs(vDelta)}% vs ${fmtU(totalPizzasPrev)} en 2025</div>` : ''}
+    </div>
+    <div class="kpi warm">
       <div class="kpi-label">Keto — masa almendras</div>
-      <div class="kpi-value">${ketoN.toLocaleString('es-AR')}</div>
-      <div class="kpi-sub">${ketoP}% del total${prevKetoP !== null ? ` · era ${prevKetoP}% en 2025` : ''}</div>
+      <div class="kpi-value">${fmtU(ketoN)}</div>
+      <div class="kpi-sub">${totalPizzas?(ketoN/totalPizzas*100).toFixed(1):0}% del total de pizzas</div>
     </div>
     <div class="kpi" style="border-top-color:var(--mostrador)">
       <div class="kpi-label">Vegana — muzz almendras</div>
-      <div class="kpi-value">${veganN.toLocaleString('es-AR')}</div>
-      <div class="kpi-sub">${veganP}% del total${prevVeganP !== null ? ` · era ${prevVeganP}% en 2025` : ''}</div>
+      <div class="kpi-value">${fmtU(veganN)}</div>
+      <div class="kpi-sub">${totalPizzas?(veganN/totalPizzas*100).toFixed(1):0}% del total de pizzas</div>
     </div>
-    <div class="kpi good">
-      <div class="kpi-label">Total almendras (ambas)</div>
-      <div class="kpi-value">${almTotal.toLocaleString('es-AR')}</div>
-      <div class="kpi-sub">${almP}% de las pizzas — lanzadas ago 2025</div>
-    </div>
-  </div>
-  <div class="chart-card">
-    <div class="chart-title"><span>Almendras — % del total de pizzas por mes (apilado)</span></div>
-    <div class="chart-wrap" style="height:180px"><canvas id="chartAlmendras"></canvas></div>
-  </div>`;
-  $('mainContent').appendChild(almDiv);
-
-  const almRows2 = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
-  const almLabels = almRows2.map(r => (r.anio===2026?'26 ':'25 ') + MESES[r.mes]);
-  const getAlmPct = (r, tipo) => {
-    const tp = Object.values(r.pizzas||{}).reduce((s,v)=>s+v,0);
-    return tp > 0 ? +((r.almendras?.[tipo]||0)/tp*100).toFixed(1) : 0;
-  };
-  makeChart('chartAlmendras', {
-    type: 'bar',
-    data: {
-      labels: almLabels,
-      datasets: [
-        { label: 'Keto (masa)', data: almRows2.map(r=>getAlmPct(r,'keto')), backgroundColor: '#c4773a', stack: 'alm' },
-        { label: 'Vegana almendras', data: almRows2.map(r=>getAlmPct(r,'vegan')), backgroundColor: '#4ecdc4', stack: 'alm' },
-      ]
-    },
-    options: {
-      plugins: {
-        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
-        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw}%` } }
-      },
-      scales: {
-        x: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
-        y: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => v + '%' } }
-      }
-    }
-  });
-}
-
-function renderDias() {
-  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
-  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
-  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
-  const d25 = sumData(rows25);
-  const d26 = sumData(rows26);
-  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
-  const prev = anio === 'ambos' ? d25 : null;
-
-  const DIAS_ORDER = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
-  const totalMain = Object.values(main.dias).reduce((s,v)=>s+v.ventas,0);
-
-  let html = `<div class="chart-grid">
-    <div class="chart-card" style="grid-column:1/-1">
-      <div class="chart-title"><span>Ventas por día de la semana</span></div>
-      <div class="chart-wrap" style="height:220px"><canvas id="chartDias"></canvas></div>
+    <div class="kpi ${parseFloat(almPct)>6?'good':''}">
+      <div class="kpi-label">Total almendras</div>
+      <div class="kpi-value">${fmtU(almTotal)}</div>
+      <div class="kpi-sub">${almPct}% del total${almPctPrev ? ` · era ${almPctPrev}% en 2025` : ''}</div>
     </div>
   </div>
+
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title"><span>Facturación por rubro</span></div><div class="chart-wrap" style="height:240px"><canvas id="cRubros"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title"><span>Mix por rubro</span></div><div class="chart-wrap" style="height:240px"><canvas id="cRubrosDona"></canvas></div></div>
+  </div>
+
   <div class="table-card">
-    <div class="table-header">Detalle por día ${prev ? '(2025 vs 2026)' : anio}</div>
-    <table>
-      <thead><tr>
-        <th>Día</th>
-        <th class="right">Ventas ${anio === 'ambos' ? '2026' : anio}</th>
-        <th class="right">% semana</th>
-        <th class="right">Órdenes</th>
-        <th class="right">Ticket</th>
-        ${prev ? '<th class="right">Ventas 2025</th><th class="right">Δ</th>' : ''}
-      </tr></thead><tbody>`;
+    <div class="table-header">Rubros — ventas y unidades ${prev ? '(2025 vs 2026)' : anio}</div>
+    <table><thead><tr>
+      <th>Rubro</th><th class="right">Uds</th><th class="right">Ventas</th><th class="right">% total</th>
+      ${prev ? '<th class="right">Uds 2025</th><th class="right">Δ ventas</th>' : ''}
+    </tr></thead><tbody>`;
 
-  for (const d of DIAS_ORDER) {
-    const dv = main.dias[d] || {ordenes:0, ventas:0};
-    const pv = prev?.dias[d] || {ordenes:0, ventas:0};
-    const pctV = totalMain ? (dv.ventas/totalMain*100).toFixed(1) : 0;
-    const tick = dv.ordenes ? dv.ventas/dv.ordenes : 0;
-    const delta = prev && pv.ventas > 0 ? pct(dv.ventas, pv.ventas) : null;
+  for (const [r, v] of rubros) {
+    const pv = prev?.rubros[r] || {cantidad:0, ventas:0};
+    const p = totalVentas ? (v.ventas/totalVentas*100).toFixed(1) : 0;
+    const delta = prev && pv.ventas > 0 ? pct(v.ventas, pv.ventas) : null;
     const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
     html += `<tr>
-      <td style="font-weight:500">${d}</td>
-      <td class="right">${fmtFull(dv.ventas)}</td>
-      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:var(--accent2)"></div></div>${pctV}%</div></td>
-      <td class="right">${dv.ordenes.toLocaleString('es-AR')}</td>
-      <td class="right">${fmtFull(tick)}</td>
-      ${prev ? `<td class="right" style="color:var(--text-muted)">${fmtFull(pv.ventas)}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+      <td><span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;background:var(--surface2);color:var(--text-muted)">${r}</span></td>
+      <td class="right">${fmtU(v.cantidad)}</td>
+      <td class="right">${fmtN(v.ventas)}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${RUBRO_COLORS[r]||'var(--accent)'}"></div></div>${p}%</div></td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${fmtU(pv.cantidad)}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
     </tr>`;
   }
 
-  html += `</tbody></table></div>`;
+  html += `</tbody></table></div>
+
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title"><span>Top pizzas — unidades</span></div><div class="chart-wrap" style="height:260px"><canvas id="cPizzas"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title"><span>Almendras — % pizzas por mes</span></div><div class="chart-wrap" style="height:260px"><canvas id="cAlm"></canvas></div></div>
+  </div>`;
+
   $('mainContent').innerHTML = html;
 
-  makeChart('chartDias', {
-    type: 'bar',
-    data: {
-      labels: DIAS_ORDER,
-      datasets: prev ? [
-        { label: '2025', data: DIAS_ORDER.map(d => d25.dias[d]?.ventas || 0), backgroundColor: '#2e2b24' },
-        { label: '2026', data: DIAS_ORDER.map(d => d26.dias[d]?.ventas || 0), backgroundColor: '#c4773a' },
-      ] : [
-        { label: 'Ventas', data: DIAS_ORDER.map(d => main.dias[d]?.ventas || 0), backgroundColor: '#c4773a' }
-      ]
-    },
-    options: {
-      plugins: { legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } } }
-    }
-  });
+  const rubroNames = rubros.map(([r]) => r);
+  const legOpts = {display:true, position:'bottom', labels:{color:'#7a7568', font:{family:'DM Mono',size:10}, boxWidth:10}};
+
+  makeChart('cRubros', {type:'bar', data:{labels:rubroNames, datasets: prev ? [
+    {label:'2025', data:rubroNames.map(r=>d25.rubros[r]?.ventas||0), backgroundColor:'#2e2b24'},
+    {label:'2026', data:rubroNames.map(r=>d26.rubros[r]?.ventas||0), backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#e8c547')},
+  ] : [{label:'Ventas', data:rubroNames.map(r=>main.rubros[r]?.ventas||0), backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#e8c547')}]},
+  options:{plugins:{legend:{display:!!prev,...legOpts}}, scales:{
+    x:{grid:{color:'#1e1c18'}, ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:10}}},
+    y:{grid:{color:'#1e1c18'}, ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>fmt(v)}}
+  }}});
+
+  makeChart('cRubrosDona', {type:'doughnut', data:{labels:rubroNames, datasets:[{
+    data:rubroNames.map(r=>main.rubros[r]?.ventas||0),
+    backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#555'), borderWidth:0
+  }]}, options:{plugins:{legend:{...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.label}: ${fmt(ctx.raw)}`}}}, cutout:'60%'}});
+
+  const pizzaNames = topPizzas.map(([p]) => p);
+  makeChart('cPizzas', {type:'bar', data:{labels:pizzaNames, datasets: prev ? [
+    {label:'2025', data:pizzaNames.map(p=>d25.pizzas[p]||0), backgroundColor:'#2e2b24'},
+    {label:'2026', data:pizzaNames.map(p=>d26.pizzas[p]||0), backgroundColor:'#e8c547'},
+  ] : [{label:'Uds', data:pizzaNames.map(p=>main.pizzas[p]||0), backgroundColor:'#e8c547'}]},
+  options:{indexAxis:'y', plugins:{legend:{display:!!prev,...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.dataset.label}: ${ctx.raw} uds`}}},
+  scales:{x:{grid:{color:'#1e1c18'}, ticks:{color:'#4a4840',font:{family:'DM Mono',size:10}}},
+          y:{grid:{color:'#1e1c18'}, ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:9}}}}}});
+
+  const almR = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const almLbl = almR.map(r=>(r.anio===2026?'26 ':'25 ')+MESES[r.mes]);
+  const getP = (r,tipo) => { const tp=Object.values(r.pizzas||{}).reduce((s,v)=>s+v,0); return tp>0?+((r.almendras?.[tipo]||0)/tp*100).toFixed(1):0; };
+  makeChart('cAlm', {type:'bar', data:{labels:almLbl, datasets:[
+    {label:'Keto', data:almR.map(r=>getP(r,'keto')), backgroundColor:'#c4773a', stack:'alm'},
+    {label:'Vegana alm.', data:almR.map(r=>getP(r,'vegan')), backgroundColor:'#4ecdc4', stack:'alm'},
+  ]}, options:{plugins:{legend:{...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.dataset.label}: ${ctx.raw}%`}}},
+  scales:{x:{stacked:true,grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:9},maxRotation:45}},
+          y:{stacked:true,grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>v+'%'}}}}});
 }
+
+
+
+
 
 function renderCombos() {
   const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
@@ -1088,9 +990,46 @@ function renderCombos() {
   });
 }
 
+function renderDias() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25); const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+  const DO = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+  const totV = Object.values(main.dias).reduce((s,v)=>s+v.ventas,0);
+
+  let html = `<div class="chart-card" style="margin-bottom:16px"><div class="chart-title"><span>Ventas por día de la semana</span></div><div class="chart-wrap" style="height:210px"><canvas id="cDias"></canvas></div></div>
+  <div class="table-card"><div class="table-header">Detalle por día ${prev?'(2025 vs 2026)':anio}</div>
+  <table><thead><tr><th>Día</th><th class="right">Ventas</th><th class="right">%</th><th class="right">Órdenes</th><th class="right">Ticket</th>${prev?'<th class="right">Ventas 2025</th><th class="right">Δ</th>':''}</tr></thead><tbody>`;
+  for (const d of DO) {
+    const dv = main.dias[d]||{ordenes:0,ventas:0}; const pv = prev?.dias[d]||{ordenes:0,ventas:0};
+    const p = totV?(dv.ventas/totV*100).toFixed(1):0;
+    const tick = dv.ordenes?dv.ventas/dv.ordenes:0;
+    const delta = prev&&pv.ventas>0?pct(dv.ventas,pv.ventas):null;
+    const cls = delta!==null?(parseFloat(delta)>=0?'up':'down'):'neutral';
+    html+=`<tr><td style="font-weight:500">${d}</td><td class="right">${fmtN(dv.ventas)}</td>
+    <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:var(--accent2)"></div></div>${p}%</div></td>
+    <td class="right">${fmtU(dv.ordenes)}</td><td class="right">${fmtN(tick)}</td>
+    ${prev?`<td class="right" style="color:var(--text-muted)">${fmtN(pv.ventas)}</td><td class="right"><span class="delta-badge ${cls}">${delta!==null?(parseFloat(delta)>0?'+':'')+delta+'%':'—'}</span></td>`:''}</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+  const legOpts = {display:!!prev,position:'bottom',labels:{color:'#7a7568',font:{family:'DM Mono',size:10},boxWidth:10}};
+  makeChart('cDias',{type:'bar',data:{labels:DO,datasets:prev?[
+    {label:'2025',data:DO.map(d=>d25.dias[d]?.ventas||0),backgroundColor:'#2e2b24'},
+    {label:'2026',data:DO.map(d=>d26.dias[d]?.ventas||0),backgroundColor:'#c4773a'},
+  ]:[{label:'Ventas',data:DO.map(d=>main.dias[d]?.ventas||0),backgroundColor:'#c4773a'}]},
+  options:{plugins:{legend:legOpts},scales:{
+    x:{grid:{color:'#1e1c18'},ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:10}}},
+    y:{grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>fmt(v)}}
+  }}});
+}
+
 function render() {
   destroyCharts();
-  const views = { resumen: renderResumen, canal: renderCanal, pizzas: renderPizzas, combos: renderCombos, dias: renderDias };
+  const views = { resumen: renderResumen, canal: renderCanal, productos: renderProductos, combos: renderCombos, dias: renderDias };
   (views[state.view] || renderResumen)();
 }
 
@@ -1122,7 +1061,7 @@ $('anioSelect').addEventListener('change', e => {
   } else {
     mesCtrl.style.display = 'none';
     state.mes = null;
-    $('mesSelect').value = '1';
+    $('mesSelect').value = '';
   }
   render();
 });
