@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risata — Dashboard de Ventas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,300&display=swap');
+
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --surface2: #242118;
+    --border: #2e2b24;
+    --accent: #e8c547;
+    --accent2: #c4773a;
+    --peya: #ff6b35;
+    --mostrador: #4ecdc4;
+    --delivery: #95e1d3;
+    --salon: #f38181;
+    --rappi: #a8e6cf;
+    --text: #e8e4d9;
+    --text-muted: #7a7568;
+    --text-dim: #4a4840;
+    --danger: #e05c5c;
+    --good: #6bcb77;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--text-muted); font-weight: 300; font-size: 16px; margin-left: 8px; }
+  .data-note {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  /* ── CONTROLS ── */
+  .controls {
+    padding: 16px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .tab-group { display: flex; gap: 2px; }
+  .tab {
+    padding: 6px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .tab:first-child { border-radius: 4px 0 0 4px; }
+  .tab:last-child { border-radius: 0 4px 4px 0; }
+  .tab.active { background: var(--accent); color: #0f0e0c; border-color: var(--accent); font-weight: 500; }
+  .tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .separator { width: 1px; height: 24px; background: var(--border); }
+
+  /* ── MAIN LAYOUT ── */
+  main { padding: 24px 40px; display: flex; flex-direction: column; gap: 24px; }
+
+  /* ── KPI ROW ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .kpi.danger::before { background: var(--danger); }
+  .kpi.good::before { background: var(--good); }
+  .kpi-label { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .kpi-value { font-family: 'Fraunces', serif; font-size: 26px; color: var(--text); }
+  .kpi-delta {
+    font-size: 11px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .kpi-delta.up { color: var(--good); }
+  .kpi-delta.down { color: var(--danger); }
+  .kpi-sub { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+  /* ── CHART GRID ── */
+  .chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+  }
+  .chart-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chart-title strong { color: var(--text); font-size: 13px; text-transform: none; letter-spacing: 0; }
+  .chart-wrap { position: relative; }
+
+  /* ── TABLE ── */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #1e1c18;
+    font-size: 12px;
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .bar-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+
+  .delta-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+  }
+  .delta-badge.up { background: #1a3320; color: var(--good); }
+  .delta-badge.down { background: #2d1a1a; color: var(--danger); }
+  .delta-badge.neutral { background: var(--surface2); color: var(--text-muted); }
+
+  /* ── CANAL PILLS ── */
+  .canal-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .canal-PedidosYa { background: #3d1f10; color: var(--peya); }
+  .canal-Mostrador { background: #0f2e2c; color: var(--mostrador); }
+  .canal-Delivery { background: #0e2824; color: var(--delivery); }
+  .canal-Salon { background: #2d1a1a; color: var(--salon); }
+  .canal-Rappi { background: #1a2e22; color: var(--rappi); }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    color: var(--text);
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: -8px;
+  }
+
+  /* ── ALERT STRIP ── */
+  .alert-strip {
+    background: #1d1510;
+    border: 1px solid #3d2510;
+    border-radius: 6px;
+    padding: 12px 20px;
+    color: #c47a3a;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .alert-strip::before { content: '▲'; font-size: 10px; }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* ── DIAS HEATMAP ── */
+  .dias-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .dia-cell {
+    background: var(--surface2);
+    border-radius: 4px;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .dia-name { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+  .dia-val { font-size: 12px; color: var(--text); }
+  .dia-pct { font-size: 10px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Risata <span>Dashboard de Ventas</span></div>
+  <div class="data-note">Datos al 31/10/2026 · Fudo POS · Solo órdenes cerradas</div>
+</header>
+
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Local</span>
+    <div class="tab-group" id="localTabs">
+      <button class="tab active" data-local="Nueva Cordoba">Nueva Córdoba</button>
+      <button class="tab" data-local="Poeta">Poeta</button>
+      <button class="tab" data-local="Alta Cordoba">Alta Córdoba</button>
+    </div>
+  </div>
+  <div class="separator"></div>
+  <div class="control-group">
+    <span class="control-label">Vista</span>
+    <div class="tab-group" id="viewTabs">
+      <button class="tab active" data-view="resumen">Resumen</button>
+      <button class="tab" data-view="canal">Canal</button>
+      <button class="tab" data-view="productos">Productos</button>
+      <button class="tab" data-view="combos">Combos</button>
+      <button class="tab" data-view="dias">Días</button>
+    </div>
+  </div>
+  <div class="separator"></div>
+  <div class="control-group">
+    <span class="control-label">Año</span>
+    <select id="anioSelect">
+      <option value="ambos">2025 vs 2026</option>
+      <option value="2025">2025</option>
+      <option value="2026" selected>2026</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Período</span>
+    <select id="periodoSelect">
+      <option value="todo">Todo el período</option>
+      <option value="ene-abr">Ene → Abr</option>
+      <option value="may-ago">May → Ago</option>
+      <option value="sep-dic">Sep → Dic</option>
+    </select>
+  </div>
+  <div class="control-group" id="mesControl" style="display:flex">
+    <span class="control-label">Mes</span>
+    <select id="mesSelect">
+      <option value="1">Enero</option>
+      <option value="2">Febrero</option>
+      <option value="3">Marzo</option>
+      <option value="4">Abril</option>
+      <option value="5">Mayo</option>
+      <option value="6">Junio</option>
+      <option value="7">Julio</option>
+      <option value="8">Agosto</option>
+      <option value="9">Septiembre</option>
+      <option value="10">Octubre</option>
+      <option value="11">Noviembre</option>
+      <option value="12">Diciembre</option>
+    </select>
+  </div>
+</div>
+
+<main id="mainContent"></main>
+
+<script>
+const RAW = {"Nueva Cordoba":[{"periodo":"2025-01","anio":2025,"mes":1,"ordenes":1385,"ventas":20220489.0,"ticket":14600.0,"canal":{"Delivery propio":{"ordenes":114,"ventas":1900044.0},"Mostrador":{"ordenes":448,"ventas":5150970.0},"PedidosYa":{"ordenes":477,"ventas":7262275.0},"Salon":{"ordenes":346,"ventas":5907200.0}},"dias":{"Lun":{"ordenes":144,"ventas":2185092.0},"Mar":{"ordenes":149,"ventas":2030424.0},"Mie":{"ordenes":216,"ventas":2949132.0},"Jue":{"ordenes":204,"ventas":3078776.0},"Vie":{"ordenes":227,"ventas":3380083.0},"Sab":{"ordenes":208,"ventas":3095049.0},"Dom":{"ordenes":237,"ventas":3501933.0}},"pizzas":{"Fugazza":81,"Napolitana":233,"Margarita":468,"La nuestra":233,"Ed. Limitada Lomo y BBQ":66,"Jamon & Provolone":196,"Diavola":196,"4 quesos":136,"Funghi del bosco":135,"Faina":14},"combos":{"Combo Margarita":{"ordenes":57,"ventas":664800.0},"Combo Margarita para dos":{"ordenes":7,"ventas":142100.0},"Combo Postres":{"ordenes":10,"ventas":47000.0},"Combo La nuestra":{"ordenes":47,"ventas":593100.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":9500.0}},"rubros":{"Cervezas":{"cantidad":305,"ventas":1762100.0},"Pizzas":{"cantidad":1640,"ventas":16238400.0},"Antipasti":{"cantidad":153,"ventas":747020.0},"Gaseosas y Aguas":{"cantidad":388,"ventas":1253650.0},"Combos":{"cantidad":122,"ventas":1456500.0},"Dips":{"cantidad":135,"ventas":136140.0},"Tragos":{"cantidad":70,"ventas":590000.0},"Postres":{"cantidad":95,"ventas":255800.0},"Focaccias":{"cantidad":86,"ventas":760850.0},"Piegatas":{"cantidad":41,"ventas":421400.0},"Pizzas Veganas":{"cantidad":53,"ventas":491850.0},"Congeladas":{"cantidad":5,"ventas":42200.0},"Opcion":{"cantidad":2,"ventas":2740.0}},"almendras":{"keto":0,"vegan":3}},{"periodo":"2025-02","anio":2025,"mes":2,"ordenes":1655,"ventas":24508866.0,"ticket":14809.0,"canal":{"Delivery propio":{"ordenes":169,"ventas":2673850.0},"Mostrador":{"ordenes":610,"ventas":7480683.5},"PedidosYa":{"ordenes":547,"ventas":8316728.0},"Salon":{"ordenes":329,"ventas":6037605.0}},"dias":{"Lun":{"ordenes":199,"ventas":2818148.0},"Mar":{"ordenes":167,"ventas":2561433.5},"Mie":{"ordenes":184,"ventas":2719141.0},"Jue":{"ordenes":236,"ventas":3445713.0},"Vie":{"ordenes":280,"ventas":4434805.0},"Sab":{"ordenes":287,"ventas":4175519.5},"Dom":{"ordenes":302,"ventas":4354106.5}},"pizzas":{"Edición Limitada La Rística":60,"Margarita":721,"4 quesos":182,"Napolitana":242,"Fugazza":146,"La nuestra":214,"Diavola":244,"Funghi del bosco":151,"Jamon & Provolone":170,"Vegano - Pan de Ajo":1,"Ed. Limitada Lomo y BBQ":68,"Pizza La Roja":2,"Faina":10},"combos":{"Combo Margarita":{"ordenes":82,"ventas":998200.0},"Combo Margarita para dos":{"ordenes":56,"ventas":1214200.0},"Combo La nuestra":{"ordenes":29,"ventas":364800.0},"Pizza + Bebida":{"ordenes":32,"ventas":274799.0},"Combo Postres":{"ordenes":12,"ventas":57000.0},"Promo Margarita Estudiante":{"ordenes":4,"ventas":22400.0},"Combo Focaccia + bebida":{"ordenes":4,"ventas":38000.0}},"rubros":{"Postres":{"cantidad":159,"ventas":528400.0},"Cervezas":{"cantidad":319,"ventas":2081000.0},"Pizzas":{"cantidad":1983,"ventas":18820930.0},"Gaseosas y Aguas":{"cantidad":392,"ventas":1142750.0},"Pizzas Veganas":{"cantidad":59,"ventas":563150.0},"Antipasti":{"cantidad":154,"ventas":809580.0},"Combos":{"cantidad":219,"ventas":2969399.0},"Piegatas":{"cantidad":60,"ventas":567080.0},"Dips":{"cantidad":156,"ventas":161430.0},"Focaccias":{"cantidad":99,"ventas":1038430.0},"Tragos":{"cantidad":39,"ventas":250500.0},"Congeladas":{"cantidad":5,"ventas":91800.0}},"almendras":{"keto":0,"vegan":13}},{"periodo":"2025-03","anio":2025,"mes":3,"ordenes":2137,"ventas":31489808.0,"ticket":14736.0,"canal":{"Delivery propio":{"ordenes":247,"ventas":4262820.0},"Mostrador":{"ordenes":687,"ventas":8472772.0},"PedidosYa":{"ordenes":855,"ventas":12245835.5},"Salon":{"ordenes":348,"ventas":6508380.0}},"dias":{"Lun":{"ordenes":304,"ventas":4626641.0},"Mar":{"ordenes":196,"ventas":2736015.0},"Mie":{"ordenes":166,"ventas":2421987.5},"Jue":{"ordenes":231,"ventas":3511386.0},"Vie":{"ordenes":360,"ventas":5637306.0},"Sab":{"ordenes":461,"ventas":6840825.0},"Dom":{"ordenes":419,"ventas":5715647.0}},"pizzas":{"Margarita":988,"Jamon & Provolone":240,"4 quesos":209,"Fugazza":131,"Napolitana":271,"La nuestra":293,"Funghi del bosco":176,"Edición Limitada La Rística":96,"Diavola":259,"Faina":18,"Muzza Clasica":35,"Vegano - Pan de Ajo":4,"Ed Limitada Di Zucca":2,"Pizza La Roja":6,"Ed. Limitada Lomo y BBQ":1},"combos":{"Combo Margarita para dos":{"ordenes":88,"ventas":1938700.0},"Combo Margarita":{"ordenes":75,"ventas":908700.0},"Pizza + Bebida":{"ordenes":198,"ventas":1826910.0},"Combo Postres":{"ordenes":45,"ventas":228200.0},"Combo La nuestra":{"ordenes":43,"ventas":560900.0},"Promo Margarita Estudiante":{"ordenes":17,"ventas":123480.0},"Combo Focaccia + bebida":{"ordenes":4,"ventas":40000.0}},"rubros":{"Pizzas":{"cantidad":2414,"ventas":23940089.0},"Postres":{"cantidad":204,"ventas":527600.0},"Gaseosas y Aguas":{"cantidad":426,"ventas":1298100.0},"Focaccias":{"cantidad":100,"ventas":1028720.0},"Combos":{"cantidad":470,"ventas":5626890.0},"Dips":{"cantidad":185,"ventas":177500.0},"Cervezas":{"cantidad":218,"ventas":1433000.0},"Antipasti":{"cantidad":186,"ventas":1014000.0},"Pizzas Veganas":{"cantidad":67,"ventas":620900.0},"Piegatas":{"cantidad":85,"ventas":828400.0},"Tragos":{"cantidad":48,"ventas":276000.0},"Congeladas":{"cantidad":2,"ventas":19000.0}},"almendras":{"keto":0,"vegan":3}},{"periodo":"2025-04","anio":2025,"mes":4,"ordenes":1976,"ventas":30437838.0,"ticket":15404.0,"canal":{"Delivery propio":{"ordenes":210,"ventas":3783980.0},"Mostrador":{"ordenes":613,"ventas":8142034.0},"PedidosYa":{"ordenes":836,"ventas":12695069.0},"Salon":{"ordenes":317,"ventas":5816755.0}},"dias":{"Lun":{"ordenes":193,"ventas":2886578.0},"Mar":{"ordenes":242,"ventas":3520654.0},"Mie":{"ordenes":287,"ventas":4130249.0},"Jue":{"ordenes":239,"ventas":3785272.0},"Vie":{"ordenes":369,"ventas":5921448.0},"Sab":{"ordenes":305,"ventas":4870200.0},"Dom":{"ordenes":341,"ventas":5323437.0}},"pizzas":{"Napolitana":258,"4 quesos":247,"Jamon & Provolone":193,"Margarita":748,"Diavola":259,"Fugazza":126,"Funghi del bosco":188,"La nuestra":274,"Faina":75,"Edición Limitada La Rística":71,"Pizza La Roja":1,"Vegano - Pan de Ajo":2,"Ed. Limitada Lomo y BBQ":4,"Muzza Clasica":9},"combos":{"Combo Margarita":{"ordenes":85,"ventas":1216400.0},"Combo Postres":{"ordenes":45,"ventas":240900.0},"Pizza + Bebida":{"ordenes":125,"ventas":1148093.0},"Promo Margarita Estudiante":{"ordenes":17,"ventas":153440.0},"Combo Margarita para dos":{"ordenes":39,"ventas":894668.0},"Combo La nuestra":{"ordenes":59,"ventas":792400.0},"Combo Focaccia + bebida":{"ordenes":3,"ventas":30600.0},"Combo Focaccia + Bebida":{"ordenes":1,"ventas":10800.0}},"rubros":{"Postres":{"cantidad":226,"ventas":537500.0},"Pizzas":{"cantidad":2214,"ventas":22596197.0},"Piegatas":{"cantidad":59,"ventas":664970.0},"Gaseosas y Aguas":{"cantidad":361,"ventas":1038980.0},"Combos":{"cantidad":374,"ventas":4487301.0},"Pizzas Veganas":{"cantidad":73,"ventas":783200.0},"Focaccias":{"cantidad":78,"ventas":809500.0},"Antipasti":{"cantidad":169,"ventas":844770.0},"Tragos":{"cantidad":37,"ventas":257500.0},"Cervezas":{"cantidad":191,"ventas":1416798.0},"Dips":{"cantidad":132,"ventas":102680.0},"Congeladas":{"cantidad":2,"ventas":18000.0}},"almendras":{"keto":0,"vegan":5}},{"periodo":"2025-05","anio":2025,"mes":5,"ordenes":1916,"ventas":30184576.0,"ticket":15754.0,"canal":{"Delivery propio":{"ordenes":211,"ventas":3563725.0},"Mostrador":{"ordenes":572,"ventas":7655232.0},"PedidosYa":{"ordenes":855,"ventas":13483068.5},"Salon":{"ordenes":278,"ventas":5482550.0}},"dias":{"Lun":{"ordenes":167,"ventas":2517324.0},"Mar":{"ordenes":174,"ventas":2705746.0},"Mie":{"ordenes":207,"ventas":3231698.0},"Jue":{"ordenes":238,"ventas":3782978.5},"Vie":{"ordenes":454,"ventas":7406542.0},"Sab":{"ordenes":352,"ventas":5440531.0},"Dom":{"ordenes":324,"ventas":5099756.0}},"pizzas":{"Margarita":644,"Diavola":319,"Funghi del bosco":151,"Jamon & Provolone":178,"Napolitana":254,"La nuestra":295,"Edición Limitada La Rística":67,"4 quesos":223,"Fugazza":125,"Vegano - Pan de Ajo":8,"Faina":81,"Pizza La Roja":2},"combos":{"Combo Postres":{"ordenes":53,"ventas":320400.0},"Combo Focaccia + bebida":{"ordenes":7,"ventas":76700.0},"Combo Margarita":{"ordenes":49,"ventas":703000.0},"Promo Margarita Estudiante":{"ordenes":20,"ventas":197120.0},"Pizza + Bebida":{"ordenes":94,"ventas":846000.0},"Combo La nuestra":{"ordenes":59,"ventas":842900.0},"Combo Focaccia + Bebida":{"ordenes":5,"ventas":54000.0},"Combo Margarita para dos":{"ordenes":18,"ventas":371924.0}},"rubros":{"Pizzas":{"cantidad":2175,"ventas":22449150.0},"Postres":{"cantidad":226,"ventas":506000.0},"Combos":{"cantidad":305,"ventas":3412044.0},"Cervezas":{"cantidad":185,"ventas":1260498.0},"Dips":{"cantidad":105,"ventas":106860.0},"Tragos":{"cantidad":49,"ventas":320500.0},"Pizzas Veganas":{"cantidad":67,"ventas":663500.0},"Antipasti":{"cantidad":156,"ventas":879770.0},"Focaccias":{"cantidad":77,"ventas":719200.0},"Piegatas":{"cantidad":41,"ventas":390240.0},"Gaseosas y Aguas":{"cantidad":344,"ventas":1111980.0},"Congeladas":{"cantidad":37,"ventas":958300.0}},"almendras":{"keto":0,"vegan":21}},{"periodo":"2025-06","anio":2025,"mes":6,"ordenes":1814,"ventas":29759461.0,"ticket":16405.0,"canal":{"Delivery propio":{"ordenes":218,"ventas":4213292.0},"Mostrador":{"ordenes":529,"ventas":7460735.0},"PedidosYa":{"ordenes":891,"ventas":14379254.0},"Salon":{"ordenes":176,"ventas":3706180.0}},"dias":{"Lun":{"ordenes":202,"ventas":3297057.0},"Mar":{"ordenes":158,"ventas":2609521.0},"Mie":{"ordenes":205,"ventas":3370451.0},"Jue":{"ordenes":246,"ventas":4016703.0},"Vie":{"ordenes":292,"ventas":4694678.0},"Sab":{"ordenes":312,"ventas":5588624.0},"Dom":{"ordenes":399,"ventas":6182427.0}},"pizzas":{"Margarita":824,"Fugazza":101,"Funghi del bosco":149,"La nuestra":235,"Diavola":274,"Edición Limitada La Rística":37,"4 quesos":227,"Faina":66,"Jamon & Provolone":243,"Napolitana":213,"Pizza La Roja":9,"Vegano - Pan de Ajo":5},"combos":{"Combo Margarita":{"ordenes":55,"ventas":710160.0},"Combo Postres":{"ordenes":37,"ventas":254980.0},"Promo Margarita Estudiante":{"ordenes":43,"ventas":339920.0},"Combo Margarita para dos":{"ordenes":14,"ventas":314000.0},"Pizza + Bebida":{"ordenes":78,"ventas":767000.0},"Combo La nuestra":{"ordenes":40,"ventas":790210.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":10900.0}},"rubros":{"Pizzas":{"cantidad":2212,"ventas":25112138.0},"Postres":{"cantidad":195,"ventas":555224.0},"Antipasti":{"cantidad":170,"ventas":856858.0},"Combos":{"cantidad":268,"ventas":3187170.0},"Dips":{"cantidad":81,"ventas":92130.0},"Gaseosas y Aguas":{"cantidad":296,"ventas":850720.0},"Cervezas":{"cantidad":100,"ventas":783599.0},"Tragos":{"cantidad":17,"ventas":130400.0},"Piegatas":{"cantidad":64,"ventas":606345.0},"Pizzas Veganas":{"cantidad":69,"ventas":693110.0},"Focaccias":{"cantidad":91,"ventas":1005050.0}},"almendras":{"keto":0,"vegan":15}},{"periodo":"2025-07","anio":2025,"mes":7,"ordenes":1660,"ventas":28046011.0,"ticket":16895.0,"canal":{"Delivery propio":{"ordenes":256,"ventas":4368181.0},"Mostrador":{"ordenes":489,"ventas":6990948.0},"PedidosYa":{"ordenes":663,"ventas":10872931.68},"Salon":{"ordenes":252,"ventas":5813950.0}},"dias":{"Lun":{"ordenes":202,"ventas":3474857.0},"Mar":{"ordenes":173,"ventas":2828388.0},"Mie":{"ordenes":234,"ventas":3855385.0},"Jue":{"ordenes":215,"ventas":3571055.0},"Vie":{"ordenes":252,"ventas":4452350.0},"Sab":{"ordenes":267,"ventas":4697107.16},"Dom":{"ordenes":317,"ventas":5166868.52}},"pizzas":{"4 quesos":177,"Fugazza":101,"Diavola":272,"La nuestra":225,"Napolitana":160,"Margarita":613,"Jamon & Provolone":208,"Funghi del bosco":149,"Edición Limitada La Rística":42,"Faina":83,"Vegano - Pan de Ajo":12,"Ed. Limitada Lomo y BBQ":5,"Pizza La Roja":4},"combos":{"Combo Postres":{"ordenes":26,"ventas":182000.0},"Promo Margarita Estudiante":{"ordenes":94,"ventas":959560.0},"Combo La nuestra":{"ordenes":25,"ventas":380560.0},"Jamon & Queso + La Nuestra":{"ordenes":12,"ventas":254200.0},"Combo Margarita":{"ordenes":61,"ventas":792840.0},"Pizza + Bebida":{"ordenes":55,"ventas":550000.0},"Margarita + Diavola":{"ordenes":32,"ventas":693440.0},"Diavola + La Nuestra":{"ordenes":16,"ventas":340300.0},"Funghi del bosco + 4 quesos":{"ordenes":19,"ventas":414950.0},"Combo Piegata":{"ordenes":35,"ventas":286100.0},"Combo Margarita para dos":{"ordenes":19,"ventas":427500.0}},"rubros":{"Piegatas":{"cantidad":201,"ventas":1811510.0},"Pizzas":{"cantidad":1663,"ventas":17732190.0},"Gaseosas y Aguas":{"cantidad":354,"ventas":1013600.0},"Cervezas":{"cantidad":175,"ventas":1255380.0},"Postres":{"cantidad":112,"ventas":291230.0},"Combos":{"cantidad":394,"ventas":5281450.0},"Antipasti":{"cantidad":175,"ventas":927580.0},"Tragos":{"cantidad":42,"ventas":323200.0},"Dips":{"cantidad":89,"ventas":107170.0},"Focaccias":{"cantidad":71,"ventas":765280.0},"Pizzas Veganas":{"cantidad":76,"ventas":791570.0}},"almendras":{"keto":26,"vegan":36}},{"periodo":"2025-08","anio":2025,"mes":8,"ordenes":2234,"ventas":39426944.0,"ticket":17649.0,"canal":{"Delivery propio":{"ordenes":276,"ventas":5179474.0},"Mostrador":{"ordenes":658,"ventas":9798532.0},"PedidosYa":{"ordenes":957,"ventas":16513054.0},"Salon":{"ordenes":343,"ventas":7935884.0}},"dias":{"Lun":{"ordenes":198,"ventas":3082182.0},"Mar":{"ordenes":160,"ventas":2899934.0},"Mie":{"ordenes":259,"ventas":4393343.0},"Jue":{"ordenes":287,"ventas":5021163.0},"Vie":{"ordenes":447,"ventas":8389725.0},"Sab":{"ordenes":474,"ventas":8536723.0},"Dom":{"ordenes":409,"ventas":7103874.0}},"pizzas":{"Napolitana":260,"Jamon & Provolone":328,"Margarita":851,"Diavola":481,"Fugazza":126,"La nuestra":288,"4 quesos":227,"Funghi del bosco":200,"Vegano - Pan de Ajo":3,"Faina":51,"Pizza La Roja":7,"Ed Limitada Di Zucca":22,"Ed. Limitada Lomo y BBQ":4,"Edición Limitada La Rística":10},"combos":{"Combo Postres":{"ordenes":25,"ventas":175000.0},"Combo Margarita para dos":{"ordenes":22,"ventas":495000.0},"Diavola + La Nuestra":{"ordenes":30,"ventas":649850.0},"Combo Piegata":{"ordenes":24,"ventas":201600.0},"Combo Margarita":{"ordenes":88,"ventas":1120800.0},"Pizza + Bebida":{"ordenes":91,"ventas":910000.0},"Combo La nuestra":{"ordenes":33,"ventas":495580.0},"Funghi del bosco + 4 quesos":{"ordenes":19,"ventas":417100.0},"Jamon & Queso + La Nuestra":{"ordenes":35,"ventas":744150.0},"Margarita + Diavola":{"ordenes":207,"ventas":4659050.0},"Promo Margarita Estudiante":{"ordenes":80,"ventas":721280.0},"Combo Focaccia + bebida":{"ordenes":3,"ventas":32700.0}},"rubros":{"Postres":{"cantidad":146,"ventas":498989.0},"Pizzas":{"cantidad":2028,"ventas":22773618.0},"Piegatas":{"cantidad":392,"ventas":4132130.0},"Gaseosas y Aguas":{"cantidad":486,"ventas":1422000.0},"Combos":{"cantidad":657,"ventas":10622110.0},"Antipasti":{"cantidad":208,"ventas":1040080.0},"Cervezas":{"cantidad":220,"ventas":1600070.0},"Pizzas Veganas":{"cantidad":31,"ventas":327300.0},"Dips":{"cantidad":111,"ventas":151980.0},"Tragos":{"cantidad":37,"ventas":241600.0},"Focaccias":{"cantidad":88,"ventas":875310.0}},"almendras":{"keto":171,"vegan":115}},{"periodo":"2025-09","anio":2025,"mes":9,"ordenes":2113,"ventas":37652350.0,"ticket":17819.0,"canal":{"Delivery propio":{"ordenes":241,"ventas":4416425.0},"Mostrador":{"ordenes":613,"ventas":9437276.0},"PedidosYa":{"ordenes":938,"ventas":16211981.0},"Salon":{"ordenes":321,"ventas":7586668.0}},"dias":{"Lun":{"ordenes":243,"ventas":4216721.0},"Mar":{"ordenes":205,"ventas":3635311.0},"Mie":{"ordenes":233,"ventas":4124659.0},"Jue":{"ordenes":256,"ventas":4612788.0},"Vie":{"ordenes":370,"ventas":6640878.0},"Sab":{"ordenes":386,"ventas":7142297.0},"Dom":{"ordenes":420,"ventas":7279696.0}},"pizzas":{"Margarita":823,"Diavola":528,"Ed Limitada Di Zucca":91,"Napolitana":237,"4 quesos":239,"Fugazza":118,"La nuestra":264,"Funghi del bosco":195,"Jamon & Provolone":285,"Faina":56,"Pizza La Roja":1},"combos":{"Margarita + Diavola":{"ordenes":247,"ventas":5569190.0},"Combo Margarita":{"ordenes":87,"ventas":1119600.0},"Diavola + La Nuestra":{"ordenes":50,"ventas":1070100.0},"Jamon & Queso + La Nuestra":{"ordenes":28,"ventas":608850.0},"Promo Margarita Estudiante":{"ordenes":106,"ventas":859280.0},"Pizza + Bebida":{"ordenes":101,"ventas":1010000.0},"Combo Piegata":{"ordenes":38,"ventas":318600.0},"Combo Margarita para dos":{"ordenes":19,"ventas":427500.0},"Combo Postres":{"ordenes":16,"ventas":112000.0},"Funghi del bosco + 4 quesos":{"ordenes":32,"ventas":709500.0},"Combo La nuestra":{"ordenes":37,"ventas":550960.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":10900.0}},"rubros":{"Combos":{"cantidad":762,"ventas":12366480.0},"Pizzas":{"cantidad":1855,"ventas":20295980.0},"Postres":{"cantidad":99,"ventas":343930.0},"Gaseosas y Aguas":{"cantidad":466,"ventas":1470824.0},"Tragos":{"cantidad":44,"ventas":268800.0},"Piegatas":{"cantidad":234,"ventas":2232990.0},"Antipasti":{"cantidad":226,"ventas":936535.0},"Focaccias":{"cantidad":70,"ventas":727380.0},"Dips":{"cantidad":95,"ventas":121890.0},"Cervezas":{"cantidad":254,"ventas":2003940.0},"Pizzas Veganas":{"cantidad":25,"ventas":257400.0}},"almendras":{"keto":187,"vegan":110}},{"periodo":"2025-10","anio":2025,"mes":10,"ordenes":2123,"ventas":37660664.0,"ticket":17739.0,"canal":{"Delivery propio":{"ordenes":230,"ventas":4304470.0},"Mostrador":{"ordenes":611,"ventas":9396320.0},"PedidosYa":{"ordenes":909,"ventas":15305585.0},"Salon":{"ordenes":373,"ventas":8654289.0}},"dias":{"Lun":{"ordenes":191,"ventas":3220112.5},"Mar":{"ordenes":183,"ventas":3109004.5},"Mie":{"ordenes":274,"ventas":4725514.5},"Jue":{"ordenes":360,"ventas":6419307.0},"Vie":{"ordenes":423,"ventas":7848987.0},"Sab":{"ordenes":344,"ventas":6400998.5},"Dom":{"ordenes":348,"ventas":5936740.0}},"pizzas":{"4 quesos":219,"Ed Limitada Di Zucca":135,"La nuestra":311,"Funghi del bosco":176,"Jamon & Provolone":228,"Napolitana":250,"Margarita":805,"Fugazza":120,"Diavola":465,"Pizza La Roja":3,"Faina":25,"Vegano - Pan de Ajo":1},"combos":{"Combo Postres":{"ordenes":9,"ventas":67000.0},"Margarita + Diavola":{"ordenes":184,"ventas":4247320.0},"Pizza + Bebida":{"ordenes":58,"ventas":591100.0},"Promo Margarita Estudiante":{"ordenes":110,"ventas":1012120.0},"Combo Margarita":{"ordenes":91,"ventas":1197330.0},"Jamon & Queso + La Nuestra":{"ordenes":24,"ventas":528670.0},"Combo Piegata":{"ordenes":27,"ventas":227855.0},"Funghi del bosco + 4 quesos":{"ordenes":24,"ventas":544050.0},"Combo La nuestra":{"ordenes":72,"ventas":1123530.0},"Diavola + La Nuestra":{"ordenes":30,"ventas":652750.0},"Combo Margarita para dos":{"ordenes":17,"ventas":391600.0}},"rubros":{"Pizzas":{"cantidad":1906,"ventas":21813380.0},"Cervezas":{"cantidad":330,"ventas":2811720.0},"Tragos":{"cantidad":58,"ventas":425600.0},"Gaseosas y Aguas":{"cantidad":497,"ventas":1483000.0},"Focaccias":{"cantidad":82,"ventas":929615.0},"Postres":{"cantidad":90,"ventas":383725.0},"Combos":{"cantidad":646,"ventas":10583325.0},"Dips":{"cantidad":91,"ventas":139650.0},"Piegatas":{"cantidad":263,"ventas":2782760.0},"Antipasti":{"cantidad":238,"ventas":1041710.0},"Pizzas Veganas":{"cantidad":25,"ventas":287500.0},"Opcion":{"cantidad":1,"ventas":0.0}},"almendras":{"keto":185,"vegan":97}},{"periodo":"2025-11","anio":2025,"mes":11,"ordenes":2119,"ventas":39797007.0,"ticket":18781.0,"canal":{"Delivery propio":{"ordenes":243,"ventas":4887696.0},"Mostrador":{"ordenes":589,"ventas":9489850.2},"PedidosYa":{"ordenes":886,"ventas":14980545.0},"Salon":{"ordenes":401,"ventas":10438916.0}},"dias":{"Lun":{"ordenes":243,"ventas":4326679.0},"Mar":{"ordenes":207,"ventas":3728976.0},"Mie":{"ordenes":223,"ventas":4087882.0},"Jue":{"ordenes":272,"ventas":5138277.0},"Vie":{"ordenes":368,"ventas":7033069.8},"Sab":{"ordenes":400,"ventas":7859614.0},"Dom":{"ordenes":406,"ventas":7622509.4}},"pizzas":{"Napolitana":218,"4 quesos":262,"Margarita":806,"La nuestra":260,"Funghi del bosco":170,"Jamon & Provolone":262,"Fugazza":125,"Diavola":427,"Ed Limitada Di Zucca":152,"Faina":46,"Vegano - Pan de Ajo":4,"Pizza La Roja":1},"combos":{"Promo Margarita Estudiante":{"ordenes":95,"ventas":840080.0},"Jamon & Queso + La Nuestra":{"ordenes":20,"ventas":451500.0},"Combo Margarita":{"ordenes":88,"ventas":1182460.0},"Combo La nuestra":{"ordenes":32,"ventas":503100.0},"Pizza + Bebida":{"ordenes":56,"ventas":604400.0},"Margarita + Diavola":{"ordenes":175,"ventas":3919790.0},"Combo Piegata":{"ordenes":14,"ventas":128645.0},"Funghi del bosco + 4 quesos":{"ordenes":18,"ventas":425100.0},"Combo Margarita para dos":{"ordenes":14,"ventas":329600.0},"Diavola + La Nuestra":{"ordenes":21,"ventas":483950.0},"Combo Postres":{"ordenes":10,"ventas":78500.0},"Combo Focaccia + bebida":{"ordenes":2,"ventas":27500.0}},"rubros":{"Pizzas":{"cantidad":2018,"ventas":23748410.0},"Cervezas":{"cantidad":358,"ventas":3032940.0},"Dips":{"cantidad":95,"ventas":148900.0},"Gaseosas y Aguas":{"cantidad":631,"ventas":1960800.0},"Combos":{"cantidad":545,"ventas":8974625.0},"Piegatas":{"cantidad":254,"ventas":2698590.0},"Focaccias":{"cantidad":94,"ventas":1253800.0},"Antipasti":{"cantidad":186,"ventas":1003200.0},"Postres":{"cantidad":91,"ventas":428285.0},"Tragos":{"cantidad":52,"ventas":353800.0},"Pizzas Veganas":{"cantidad":24,"ventas":266120.0}},"almendras":{"keto":164,"vegan":56}},{"periodo":"2025-12","anio":2025,"mes":12,"ordenes":1904,"ventas":36463135.0,"ticket":19151.0,"canal":{"Delivery propio":{"ordenes":153,"ventas":3177324.0},"Mostrador":{"ordenes":562,"ventas":8826485.0},"PedidosYa":{"ordenes":774,"ventas":14077581.0},"Salon":{"ordenes":415,"ventas":10381745.0}},"dias":{"Lun":{"ordenes":315,"ventas":6008254.0},"Mar":{"ordenes":257,"ventas":4809355.0},"Mie":{"ordenes":209,"ventas":4036283.0},"Jue":{"ordenes":246,"ventas":4695863.0},"Vie":{"ordenes":308,"ventas":5868605.0},"Sab":{"ordenes":267,"ventas":4965638.0},"Dom":{"ordenes":302,"ventas":6079137.0}},"pizzas":{"Napolitana":221,"Jamon & Provolone":241,"Margarita":666,"Diavola":352,"4 quesos":211,"Funghi del bosco":158,"Fugazza":97,"La nuestra":240,"Ed Limitada Di Zucca":88,"Pizza La Roja":2,"Nido de Camembert & Miel Brava":14,"Vegano - Pan de Ajo":1},"combos":{"Margarita + Diavola":{"ordenes":122,"ventas":2901050.0},"Combo La nuestra":{"ordenes":33,"ventas":543700.0},"Funghi del bosco + 4 quesos":{"ordenes":16,"ventas":402500.0},"Combo Margarita":{"ordenes":60,"ventas":817580.0},"Jamon & Queso + La Nuestra":{"ordenes":26,"ventas":626300.0},"Diavola + La Nuestra":{"ordenes":19,"ventas":445400.0},"Promo Margarita Estudiante":{"ordenes":72,"ventas":717360.0},"Combo Margarita para dos":{"ordenes":20,"ventas":472000.0},"Combo Postres":{"ordenes":6,"ventas":66650.0},"Pizza + Bebida":{"ordenes":59,"ventas":643100.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":13750.0},"Combo Piegata":{"ordenes":5,"ventas":48950.0}},"rubros":{"Pizzas":{"cantidad":1719,"ventas":21431290.0},"Dips":{"cantidad":141,"ventas":258590.0},"Cervezas":{"cantidad":404,"ventas":3032220.0},"Combos":{"cantidad":439,"ventas":7698340.0},"Piegatas":{"cantidad":188,"ventas":2079000.0},"Antipasti":{"cantidad":167,"ventas":1078230.0},"Postres":{"cantidad":74,"ventas":620235.0},"Gaseosas y Aguas":{"cantidad":536,"ventas":1844290.0},"Focaccias":{"cantidad":70,"ventas":998400.0},"Tragos":{"cantidad":57,"ventas":530000.0},"Pizzas Veganas":{"cantidad":8,"ventas":103000.0}},"almendras":{"keto":175,"vegan":66}},{"periodo":"2026-01","anio":2026,"mes":1,"ordenes":1430,"ventas":28821743.0,"ticket":20155.0,"canal":{"Delivery propio":{"ordenes":149,"ventas":3474570.0},"Mostrador":{"ordenes":465,"ventas":7378333.0},"PedidosYa":{"ordenes":542,"ventas":10276840.0},"Salon":{"ordenes":274,"ventas":7692000.0}},"dias":{"Lun":{"ordenes":169,"ventas":3407994.0},"Mar":{"ordenes":127,"ventas":2579283.0},"Mie":{"ordenes":183,"ventas":3587917.0},"Jue":{"ordenes":210,"ventas":4076050.0},"Vie":{"ordenes":308,"ventas":6437260.0},"Sab":{"ordenes":218,"ventas":4404101.0},"Dom":{"ordenes":215,"ventas":4329138.0}},"pizzas":{"Diavola":297,"Margarita":455,"Funghi del bosco":112,"La nuestra":215,"Napolitana":215,"Ed Limitada Di Zucca":78,"Jamon & Provolone":246,"Fugazza":91,"4 quesos":179,"Pizza La Roja":4,"Vegano - Pan de Ajo":1},"combos":{"Diavola + La Nuestra":{"ordenes":25,"ventas":591600.0},"Jamon & Queso + La Nuestra":{"ordenes":33,"ventas":813400.0},"Combo Margarita para dos":{"ordenes":14,"ventas":330400.0},"Margarita + Diavola":{"ordenes":84,"ventas":2042540.0},"Funghi del bosco + 4 quesos":{"ordenes":9,"ventas":232200.0},"Combo Margarita":{"ordenes":29,"ventas":388000.0},"Promo Margarita Estudiante":{"ordenes":12,"ventas":144000.0},"Combo Piegata":{"ordenes":18,"ventas":159480.0},"Combo La nuestra":{"ordenes":22,"ventas":352800.0},"Combo Postres":{"ordenes":3,"ventas":34500.0}},"rubros":{"Pizzas":{"cantidad":1499,"ventas":18571395.0},"Cervezas":{"cantidad":294,"ventas":2318120.0},"Gaseosas y Aguas":{"cantidad":500,"ventas":1728270.0},"Antipasti":{"cantidad":138,"ventas":870760.0},"Focaccias":{"cantidad":51,"ventas":980850.0},"Dips":{"cantidad":96,"ventas":189400.0},"Combos":{"cantidad":249,"ventas":5088920.0},"Tragos":{"cantidad":35,"ventas":117000.0},"Postres":{"cantidad":64,"ventas":463660.0},"Pizzas Veganas":{"cantidad":17,"ventas":239900.0},"Piegatas":{"cantidad":167,"ventas":1753100.0},"Opcion":{"cantidad":1,"ventas":0.0}},"almendras":{"keto":175,"vegan":47}},{"periodo":"2026-02","anio":2026,"mes":2,"ordenes":1978,"ventas":39823772.0,"ticket":20133.0,"canal":{"Delivery propio":{"ordenes":294,"ventas":6571660.0},"Mostrador":{"ordenes":429,"ventas":7768809.5},"PedidosYa":{"ordenes":877,"ventas":16561455.0},"Salon":{"ordenes":378,"ventas":8921847.0}},"dias":{"Lun":{"ordenes":289,"ventas":5365114.0},"Mar":{"ordenes":234,"ventas":4695755.0},"Mie":{"ordenes":249,"ventas":4652866.5},"Jue":{"ordenes":220,"ventas":4256739.0},"Vie":{"ordenes":334,"ventas":7452827.0},"Sab":{"ordenes":359,"ventas":7396650.0},"Dom":{"ordenes":293,"ventas":6003820.0}},"pizzas":{"Margarita":710,"Jamon & Provolone":257,"Diavola":405,"Fugazza":120,"Napolitana":239,"La nuestra":268,"4 quesos":234,"Funghi del bosco":139,"Ed Limitada Di Zucca":116,"Pizza La Roja":6,"Vegano - Pan de Ajo":3},"combos":{"Combo Margarita para dos":{"ordenes":20,"ventas":521900.0},"Combo La nuestra":{"ordenes":31,"ventas":541900.0},"Jamon & Queso + La Nuestra":{"ordenes":29,"ventas":803890.0},"Margarita + Diavola":{"ordenes":162,"ventas":3939100.0},"Pizza + Bebida":{"ordenes":61,"ventas":555900.0},"Promo Margarita Estudiante":{"ordenes":11,"ventas":103950.0},"Combo Margarita":{"ordenes":70,"ventas":1007700.0},"Marga Mosca 2x1":{"ordenes":11,"ventas":136500.0},"Funghi del bosco + 4 quesos":{"ordenes":23,"ventas":615050.0},"Combo Piegata":{"ordenes":13,"ventas":92070.0},"Diavola + La Nuestra":{"ordenes":19,"ventas":488390.0},"Combo Focaccia + bebida":{"ordenes":2,"ventas":0.0},"Combo Postres":{"ordenes":4,"ventas":48300.0}},"rubros":{"Gaseosas y Aguas":{"cantidad":553,"ventas":1742250.0},"Pizzas":{"cantidad":1854,"ventas":23797435.0},"Cervezas":{"cantidad":302,"ventas":2245780.0},"Combos":{"cantidad":456,"ventas":8854650.0},"Piegatas":{"cantidad":307,"ventas":3773900.0},"Dips":{"cantidad":151,"ventas":335000.0},"Focaccias":{"cantidad":50,"ventas":764350.0},"Antipasti":{"cantidad":188,"ventas":1213590.0},"Tragos":{"cantidad":190,"ventas":639600.0},"Postres":{"cantidad":54,"ventas":297770.0},"Pizzas Veganas":{"cantidad":14,"ventas":148800.0}},"almendras":{"keto":144,"vegan":55}},{"periodo":"2026-03","anio":2026,"mes":3,"ordenes":2447,"ventas":47100160.0,"ticket":19248.0,"canal":{"Delivery propio":{"ordenes":356,"ventas":7685489.0},"Mostrador":{"ordenes":453,"ventas":7381197.0},"PedidosYa":{"ordenes":1185,"ventas":20858070.6},"Salon":{"ordenes":453,"ventas":11175403.0}},"dias":{"Lun":{"ordenes":302,"ventas":5536498.6},"Mar":{"ordenes":285,"ventas":5148241.4},"Mie":{"ordenes":302,"ventas":5403672.4},"Jue":{"ordenes":267,"ventas":5261087.0},"Vie":{"ordenes":367,"ventas":7463363.0},"Sab":{"ordenes":455,"ventas":9299702.8},"Dom":{"ordenes":469,"ventas":8987594.4}},"pizzas":{"Napolitana":277,"Funghi del bosco":175,"4 quesos":258,"Margarita":833,"La nuestra":277,"Jamon & Provolone":338,"Diavola":478,"Fugazza":126,"Ed Limitada Di Zucca":115,"Nido de Camembert & Miel Brava":5,"Pizza La Roja":9},"combos":{"Marga Mosca 2x1":{"ordenes":8,"ventas":85500.0},"Combo Margarita para dos":{"ordenes":19,"ventas":506880.0},"Margarita + Diavola":{"ordenes":194,"ventas":4750800.0},"Pizza + Bebida":{"ordenes":56,"ventas":453500.0},"Combo La nuestra":{"ordenes":24,"ventas":431650.0},"Diavola + La Nuestra":{"ordenes":27,"ventas":751360.0},"Combo Piegata":{"ordenes":19,"ventas":195690.0},"Promo Margarita Estudiante":{"ordenes":15,"ventas":158700.0},"Combo Margarita":{"ordenes":71,"ventas":1040000.0},"Funghi del bosco + 4 quesos":{"ordenes":20,"ventas":560800.0},"Jamon & Queso + La Nuestra":{"ordenes":41,"ventas":1075240.0},"Combo Postres":{"ordenes":2,"ventas":24150.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":16500.0}},"rubros":{"Pizzas":{"cantidad":2163,"ventas":28850935.0},"Cervezas":{"cantidad":354,"ventas":3486860.0},"Dips":{"cantidad":136,"ventas":313939.0},"Antipasti":{"cantidad":157,"ventas":1148770.0},"Gaseosas y Aguas":{"cantidad":682,"ventas":2208380.0},"Tragos":{"cantidad":224,"ventas":617400.0},"Combos":{"cantidad":497,"ventas":10050770.0},"Focaccias":{"cantidad":57,"ventas":969650.0},"Piegatas":{"cantidad":536,"ventas":6695280.0},"Postres":{"cantidad":79,"ventas":588570.0},"Pizzas Veganas":{"cantidad":3,"ventas":36000.0}},"almendras":{"keto":176,"vegan":108}},{"periodo":"2026-04","anio":2026,"mes":4,"ordenes":2096,"ventas":40753812.0,"ticket":19444.0,"canal":{"Delivery propio":{"ordenes":286,"ventas":6573960.0},"Mostrador":{"ordenes":353,"ventas":5903272.0},"PedidosYa":{"ordenes":1180,"ventas":20991539.6},"Salon":{"ordenes":277,"ventas":7285040.0}},"dias":{"Lun":{"ordenes":184,"ventas":3233765.8},"Mar":{"ordenes":211,"ventas":3754200.0},"Mie":{"ordenes":294,"ventas":6126161.6},"Jue":{"ordenes":360,"ventas":6804371.4},"Vie":{"ordenes":383,"ventas":7441037.800000001},"Sab":{"ordenes":348,"ventas":7319016.8},"Dom":{"ordenes":316,"ventas":6075258.2}},"pizzas":{"Funghi del bosco":127,"Diavola":477,"Margarita":741,"Fugazza":107,"Ed Limitada Di Zucca":55,"4 quesos":202,"Jamon & Provolone":260,"Napolitana":260,"La nuestra":181,"Pizza La Roja":6,"Nido de Camembert & Miel Brava":1},"combos":{"Margarita + Diavola":{"ordenes":231,"ventas":5590300.0},"Diavola + La Nuestra":{"ordenes":18,"ventas":488100.0},"Marga Mosca 2x1":{"ordenes":19,"ventas":216000.0},"Pizza + Bebida":{"ordenes":68,"ventas":529000.0},"Combo Margarita":{"ordenes":52,"ventas":825280.0},"Combo Margarita para dos":{"ordenes":9,"ventas":253760.0},"Combo Piegata":{"ordenes":28,"ventas":283140.0},"Jamon & Queso + La Nuestra":{"ordenes":26,"ventas":710580.0},"Funghi del bosco + 4 quesos":{"ordenes":11,"ventas":315550.0},"Combo Postres":{"ordenes":2,"ventas":24000.0},"Combo La nuestra":{"ordenes":13,"ventas":240750.0},"Promo Margarita Estudiante":{"ordenes":7,"ventas":63200.0},"Combo Focaccia + bebida":{"ordenes":1,"ventas":0.0}},"rubros":{"Tragos":{"cantidad":178,"ventas":587000.0},"Postres":{"cantidad":87,"ventas":630010.0},"Pizzas Veganas":{"cantidad":7,"ventas":85700.0},"Gaseosas y Aguas":{"cantidad":484,"ventas":1506060.0},"Focaccias":{"cantidad":43,"ventas":639000.0},"Pizzas":{"cantidad":1717,"ventas":24223035.0},"Cervezas":{"cantidad":226,"ventas":1988085.0},"Antipasti":{"cantidad":148,"ventas":1057480.0},"Combos":{"cantidad":485,"ventas":9539660.0},"Piegatas":{"cantidad":574,"ventas":6808180.0},"Dips":{"cantidad":106,"ventas":248560.0}},"almendras":{"keto":130,"vegan":71}},{"periodo":"2026-05","anio":2026,"mes":5,"ordenes":2645,"ventas":49010772.0,"ticket":18530.0,"canal":{"Delivery propio":{"ordenes":361,"ventas":8310858.0},"Mostrador":{"ordenes":418,"ventas":6373990.0},"PedidosYa":{"ordenes":1631,"ventas":28065464.0},"Salon":{"ordenes":235,"ventas":6260460.0}},"dias":{"Lun":{"ordenes":256,"ventas":4419074.0},"Mar":{"ordenes":263,"ventas":4636994.5},"Mie":{"ordenes":245,"ventas":4387066.0},"Jue":{"ordenes":347,"ventas":6160830.5},"Vie":{"ordenes":496,"ventas":9531650.0},"Sab":{"ordenes":516,"ventas":9933195.5},"Dom":{"ordenes":522,"ventas":9941961.5}},"pizzas":{"Margarita":1499,"Diavola":521,"Jamon & Provolone":346,"La nuestra":236,"Funghi del bosco":118,"Fugazza":111,"4 quesos":240,"Ed Limitada Di Zucca":43,"Napolitana":226,"Vegano - Pan de Ajo":1,"Pizza La Roja":20},"combos":{"Margarita + Diavola":{"ordenes":254,"ventas":6721700.0},"Marga Mosca 2x1":{"ordenes":25,"ventas":281000.0},"Combo Margarita":{"ordenes":40,"ventas":652480.0},"Diavola + La Nuestra":{"ordenes":29,"ventas":792070.0},"Pizza + Bebida":{"ordenes":88,"ventas":770500.0},"Promo Margarita Estudiante":{"ordenes":79,"ventas":592500.0},"Combo Piegata":{"ordenes":15,"ventas":142130.0},"Combo Margarita para dos":{"ordenes":13,"ventas":402680.0},"Jamon & Queso + La Nuestra":{"ordenes":44,"ventas":1278460.0},"Funghi del bosco + 4 quesos":{"ordenes":20,"ventas":585080.0},"Combo La nuestra":{"ordenes":12,"ventas":233350.0},"Combo Postres":{"ordenes":15,"ventas":180800.0}},"rubros":{"Combos":{"cantidad":634,"ventas":12632750.0},"Pizzas":{"cantidad":2459,"ventas":34688870.0},"Gaseosas y Aguas":{"cantidad":427,"ventas":1343040.0},"Postres":{"cantidad":101,"ventas":585900.0},"Cervezas":{"cantidad":191,"ventas":1811835.0},"Piegatas":{"cantidad":104,"ventas":1098760.0},"Focaccias":{"cantidad":15,"ventas":213000.0},"Dips":{"cantidad":139,"ventas":353380.0},"Tragos":{"cantidad":65,"ventas":269600.0},"Pizzas Veganas":{"cantidad":10,"ventas":124500.0},"Antipasti":{"cantidad":137,"ventas":1200180.0},"Paninos":{"cantidad":258,"ventas":3015700.0}},"almendras":{"keto":147,"vegan":70}},{"periodo":"2026-06","anio":2026,"mes":6,"ordenes":1983,"ventas":40532234.0,"ticket":20440.0,"canal":{"Delivery propio":{"ordenes":330,"ventas":8351280.0},"Mostrador":{"ordenes":462,"ventas":7405497.5},"PedidosYa":{"ordenes":933,"ventas":18260055.2},"Salon":{"ordenes":258,"ventas":6515401.0}},"dias":{"Lun":{"ordenes":279,"ventas":5392530.3},"Mar":{"ordenes":240,"ventas":4771854.1},"Mie":{"ordenes":233,"ventas":4669089.7},"Jue":{"ordenes":272,"ventas":5979216.5},"Vie":{"ordenes":382,"ventas":7919882.1},"Sab":{"ordenes":304,"ventas":6524478.7},"Dom":{"ordenes":273,"ventas":5275182.3}},"pizzas":{"4 quesos":183,"La nuestra":204,"Margarita":974,"Diavola":322,"Ed Limitada La Argenta":39,"Fugazza":100,"Funghi del bosco":126,"Jamon & Provolone":264,"La Dolce Peppe":17,"La Peppe":94,"La Tricolore":28,"Napolitana":170,"Pizza La Roja":16},"combos":{"Combo La nuestra":{"ordenes":19,"ventas":371400.0},"Combo Margarita":{"ordenes":24,"ventas":405900.0},"Margarita + Diavola":{"ordenes":130,"ventas":3894650.0},"Combo Margarita para dos":{"ordenes":19,"ventas":626520.0},"Combo Postres":{"ordenes":2,"ventas":24800.0},"Diavola + La Nuestra":{"ordenes":24,"ventas":671700.0},"Funghi del bosco + 4 quesos":{"ordenes":16,"ventas":475750.0},"Jamon & Queso + La Nuestra":{"ordenes":28,"ventas":918900.0},"Marga Mosca 2x1":{"ordenes":17,"ventas":206500.0},"Margarita + La Peppe":{"ordenes":38,"ventas":1105150.0},"La Peppe + La Nuestra":{"ordenes":1,"ventas":30700.0},"Pizza + Bebida":{"ordenes":135,"ventas":1276500.0},"Promo Margarita Estudiante":{"ordenes":269,"ventas":2017500.0}},"rubros":{"Pizzas":{"cantidad":1634,"ventas":24844910.0},"Gaseosas y Aguas":{"cantidad":407,"ventas":1436360.0},"Tragos":{"cantidad":12,"ventas":88400.0},"Antipasti":{"cantidad":112,"ventas":972600.0},"Postres":{"cantidad":66,"ventas":470400.0},"Combos":{"cantidad":722,"ventas":12025970.0},"Dips":{"cantidad":137,"ventas":333260.0},"La Grosa al Molde":{"cantidad":45,"ventas":906000.0},"Cervezas":{"cantidad":171,"ventas":1326320.0},"Paninos":{"cantidad":309,"ventas":3661840.0},"Pizzas Veganas":{"cantidad":2,"ventas":25500.0}},"almendras":{"keto":126,"vegan":61}},{"periodo":"2026-07","anio":2026,"mes":7,"ordenes":2025,"ventas":41294712.0,"ticket":20392.0,"canal":{"Delivery propio":{"ordenes":272,"ventas":6996530.0},"Mostrador":{"ordenes":427,"ventas":7492060.0},"PedidosYa":{"ordenes":1064,"ventas":19661708.0},"Salon":{"ordenes":262,"ventas":7144414.0}},"dias":{"Lun":{"ordenes":202,"ventas":3820032.9000000004},"Mar":{"ordenes":202,"ventas":4216292.3},"Mie":{"ordenes":341,"ventas":6663248.199999999},"Jue":{"ordenes":281,"ventas":5459958.5},"Vie":{"ordenes":393,"ventas":8863630.5},"Sab":{"ordenes":293,"ventas":5979809.0},"Dom":{"ordenes":313,"ventas":6291740.6}},"pizzas":{"Margarita":952,"Jamon & Provolone":296,"Diavola":194,"Napolitana":210,"Funghi del bosco":140,"La nuestra":214,"4 quesos":227,"Fugazza":73,"La Peppe":99,"La Tricolore":51,"Muzza Clasica":89,"Faina":20,"La Dolce Peppe":41,"Ed Limitada La Argenta":18,"Pizza La Roja":1},"combos":{"Combo Margarita para dos":{"ordenes":14,"ventas":473200.0},"Jamon & Queso + La Nuestra":{"ordenes":32,"ventas":951000.0},"Combo Margarita":{"ordenes":23,"ventas":401200.0},"Combo La nuestra":{"ordenes":19,"ventas":376000.0},"Promo Margarita Estudiante":{"ordenes":59,"ventas":442500.0},"Diavola + La Nuestra":{"ordenes":11,"ventas":316800.0},"La Peppe + La Nuestra":{"ordenes":10,"ventas":307000.0},"Pizza + Bebida":{"ordenes":117,"ventas":1209800.0},"Funghi del bosco + 4 quesos":{"ordenes":20,"ventas":626500.0},"Margarita + La Peppe":{"ordenes":63,"ventas":1836700.0},"Dos Muzza Clásica":{"ordenes":25,"ventas":675000.0},"Marga Mosca 2x1":{"ordenes":16,"ventas":201000.0},"Combo Postres":{"ordenes":2,"ventas":26040.0},"Margarita + Diavola":{"ordenes":12,"ventas":325950.0}},"rubros":{"Pizzas":{"cantidad":2026,"ventas":30367560.0},"Paninos":{"cantidad":226,"ventas":2857920.0},"Antipasti":{"cantidad":163,"ventas":1043850.0},"Cervezas":{"cantidad":222,"ventas":2053900.0},"Combos":{"cantidad":423,"ventas":8168690.0},"Gaseosas y Aguas":{"cantidad":431,"ventas":1679580.0},"La Grosa al Molde":{"cantidad":92,"ventas":1999200.0},"Dips":{"cantidad":92,"ventas":248200.0},"Postres":{"cantidad":50,"ventas":359300.0},"Tragos":{"cantidad":16,"ventas":141100.0}},"almendras":{"keto":149,"vegan":51}},{"periodo":"2026-08","anio":2026,"mes":8,"ordenes":3024,"ventas":55871742.0,"ticket":18476.0,"canal":{"Delivery propio":{"ordenes":319,"ventas":8141683.0},"Mostrador":{"ordenes":359,"ventas":6105973.0},"PedidosYa":{"ordenes":2020,"ventas":33108194.200000003},"Salon":{"ordenes":326,"ventas":8515892.0}},"dias":{"Lun":{"ordenes":381,"ventas":6504936.4},"Mar":{"ordenes":241,"ventas":4564797.6},"Mie":{"ordenes":324,"ventas":5648723.699999999},"Jue":{"ordenes":379,"ventas":6699126.699999999},"Vie":{"ordenes":515,"ventas":9682897.5},"Sab":{"ordenes":559,"ventas":10737883.3},"Dom":{"ordenes":625,"ventas":12033377.0}},"pizzas":{"4 quesos":215,"Jamon & Provolone":338,"Muzza Clasica":1092,"Margarita":1420,"Funghi del bosco":145,"Diavola":158,"La nuestra":230,"Fugazza":107,"La Peppe":200,"Napolitana":196,"La Dolce Peppe":34,"Faina":56,"La Tricolore":43},"combos":{"Dos Muzza Clásica":{"ordenes":279,"ventas":7533000.0},"Combo La nuestra":{"ordenes":16,"ventas":316000.0},"Margarita + La Peppe":{"ordenes":131,"ventas":3878450.0},"Pizza + Bebida":{"ordenes":170,"ventas":1713500.0},"Diavola + La Nuestra":{"ordenes":12,"ventas":345600.0},"Promo Margarita Estudiante":{"ordenes":67,"ventas":502500.0},"Jamon & Queso + La Nuestra":{"ordenes":28,"ventas":891200.0},"Funghi del bosco + 4 quesos":{"ordenes":34,"ventas":1063650.0},"La Peppe + La Nuestra":{"ordenes":10,"ventas":307000.0},"Marga Mosca 2x1":{"ordenes":34,"ventas":431800.0},"Combo Postres":{"ordenes":4,"ventas":52080.0},"Combo Margarita":{"ordenes":26,"ventas":451800.0},"Margarita + Diavola":{"ordenes":10,"ventas":265000.0},"Combo Margarita para dos":{"ordenes":10,"ventas":336200.0}},"rubros":{"Pizzas":{"cantidad":2952,"ventas":44437665.0},"Gaseosas y Aguas":{"cantidad":553,"ventas":1576020.0},"Paninos":{"cantidad":199,"ventas":2273760.0},"Antipasti":{"cantidad":239,"ventas":1337500.0},"Combos":{"cantidad":831,"ventas":18087780.0},"Cervezas":{"cantidad":239,"ventas":2206880.0},"La Grosa al Molde":{"cantidad":77,"ventas":1684900.0},"Dips":{"cantidad":54,"ventas":134100.0},"Tragos":{"cantidad":28,"ventas":229500.0},"Postres":{"cantidad":61,"ventas":357500.0},"Pizzas Veganas":{"cantidad":1,"ventas":14000.0}},"almendras":{"keto":146,"vegan":37}},{"periodo":"2026-09","anio":2026,"mes":9,"ordenes":3459,"ventas":61914744.0,"ticket":17900.0,"canal":{"Delivery propio":{"ordenes":267,"ventas":6456508.0},"Mostrador":{"ordenes":366,"ventas":6351856.0},"PedidosYa":{"ordenes":2399,"ventas":38246655.0},"Salon":{"ordenes":427,"ventas":10859725.25}},"dias":{"Lun":{"ordenes":316,"ventas":5024024.75},"Mar":{"ordenes":404,"ventas":7131055.0},"Mie":{"ordenes":501,"ventas":8596125.5},"Jue":{"ordenes":516,"ventas":8554412.25},"Vie":{"ordenes":589,"ventas":11446585.0},"Sab":{"ordenes":602,"ventas":11490530.0},"Dom":{"ordenes":531,"ventas":9672011.75}},"pizzas":{"La Peppe":203,"Jamon & Provolone":402,"4 quesos":216,"Muzza Clasica":1391,"Diavola":152,"Margarita":1493,"Napolitana":275,"La Dolce Peppe":38,"La nuestra":219,"Fugazza":95,"Funghi del bosco":142,"La Tricolore":73,"Faina":50,"Pizza La Roja":1},"combos":{"Dos Muzza Clásica":{"ordenes":324,"ventas":8748000.0},"Margarita + La Peppe":{"ordenes":114,"ventas":3323850.0},"Jamon & Queso + La Nuestra":{"ordenes":32,"ventas":1007700.0},"Funghi del bosco + 4 quesos":{"ordenes":36,"ventas":1129100.0},"La Peppe + La Nuestra":{"ordenes":20,"ventas":614000.0},"Marga Mosca 2x1":{"ordenes":23,"ventas":292100.0},"Pizza + Bebida":{"ordenes":189,"ventas":1904400.0},"Combo Postres":{"ordenes":7,"ventas":93560.0},"Promo Margarita Estudiante":{"ordenes":78,"ventas":585000.0},"Combo Margarita":{"ordenes":20,"ventas":351200.0},"Combo La nuestra":{"ordenes":21,"ventas":415800.0},"Margarita + Diavola":{"ordenes":14,"ventas":477000.0},"Combo Margarita para dos":{"ordenes":8,"ventas":280800.0},"Diavola + La Nuestra":{"ordenes":11,"ventas":315200.0},"porteña":{"ordenes":22,"ventas":699600.0}},"rubros":{"Pizzas":{"cantidad":3316,"ventas":46168720.0},"Gaseosas y Aguas":{"cantidad":628,"ventas":1852800.0},"Antipasti":{"cantidad":228,"ventas":1116200.0},"Cervezas":{"cantidad":330,"ventas":4235000.0},"Combos":{"cantidad":919,"ventas":20237310.0},"La Grosa al Molde":{"cantidad":111,"ventas":2237500.0},"Paninos":{"cantidad":229,"ventas":2562400.0},"Dips":{"cantidad":52,"ventas":132100.0},"Postres":{"cantidad":86,"ventas":518900.0},"Tragos":{"cantidad":42,"ventas":439200.0},"Pizzas Veganas":{"cantidad":40,"ventas":739200.0}},"almendras":{"keto":124,"vegan":30}},{"periodo":"2026-10","anio":2026,"mes":10,"ordenes":3758,"ventas":67952342.0,"ticket":18082.0,"canal":{"Delivery propio":{"ordenes":275,"ventas":7191604.0},"Mostrador":{"ordenes":410,"ventas":7310636.75},"PedidosYa":{"ordenes":2720,"ventas":43601699.0},"Salon":{"ordenes":353,"ventas":9848402.0}},"dias":{"Lun":{"ordenes":423,"ventas":7141572.0},"Mar":{"ordenes":388,"ventas":6232218.5},"Mie":{"ordenes":437,"ventas":7368750.5},"Jue":{"ordenes":484,"ventas":8684269.75},"Vie":{"ordenes":658,"ventas":12526502.5},"Sab":{"ordenes":718,"ventas":13832397.0},"Dom":{"ordenes":650,"ventas":12166631.5}},"pizzas":{"Muzza Clasica":1385,"Jamon & Provolone":362,"Napolitana":204,"Margarita":1846,"Diavola":177,"Funghi del bosco":142,"4 quesos":212,"La Peppe":251,"La nuestra":207,"La Grosa Mundiale":32,"La Tricolore":73,"La Dolce Peppe":47,"Fugazza":97,"Faina":78,"Vegano - Pan de Ajo":1},"combos":{"Dos Muzza Clásica":{"ordenes":284,"ventas":7942000.0},"Margarita + La Peppe":{"ordenes":157,"ventas":4650650.0},"Diavola + La Nuestra":{"ordenes":13,"ventas":449250.0},"Combo Margarita para dos":{"ordenes":6,"ventas":216500.0},"Combo La nuestra":{"ordenes":21,"ventas":440300.0},"Jamon & Queso + La Nuestra":{"ordenes":26,"ventas":861600.0},"Pizza + Bebida":{"ordenes":119,"ventas":1226050.0},"Combo Margarita":{"ordenes":27,"ventas":491400.0},"Marga Mosca 2x1":{"ordenes":24,"ventas":324000.0},"Funghi del bosco + 4 quesos":{"ordenes":27,"ventas":865200.0},"Margarita + Diavola":{"ordenes":8,"ventas":217000.0},"Promo Margarita Estudiante":{"ordenes":51,"ventas":453000.0},"La Peppe + La Nuestra":{"ordenes":7,"ventas":224000.0},"Combo Postres":{"ordenes":6,"ventas":82500.0}},"rubros":{"Paninos":{"cantidad":194,"ventas":2283320.0},"Pizzas":{"cantidad":3758,"ventas":56716610.0},"Combos":{"cantidad":776,"ventas":18443450.0},"Gaseosas y Aguas":{"cantidad":639,"ventas":2080900.0},"Cervezas":{"cantidad":271,"ventas":2375400.0},"Antipasti":{"cantidad":193,"ventas":1090450.0},"Dips":{"cantidad":35,"ventas":96500.0},"La Grosa al Molde":{"cantidad":152,"ventas":3540900.0},"Tragos":{"cantidad":57,"ventas":588600.0},"Postres":{"cantidad":86,"ventas":475500.0},"Pizzas Veganas":{"cantidad":1,"ventas":12600.0}},"almendras":{"keto":128,"vegan":63}}],"Poeta":[{"periodo":"2025-01","anio":2025,"mes":1,"ordenes":800,"ventas":13082870.0,"ticket":16354.0,"canal":{"Delivery propio":{"ordenes":96,"ventas":1672280.0},"Mostrador":{"ordenes":319,"ventas":5182120.0},"PedidosYa":{"ordenes":385,"ventas":6228470.0}},"dias":{"Lun":{"ordenes":77,"ventas":1414340.0},"Mar":{"ordenes":72,"ventas":1020572.0},"Mie":{"ordenes":128,"ventas":2160076.0},"Jue":{"ordenes":100,"ventas":1541618.0},"Vie":{"ordenes":168,"ventas":2783212.0},"Sab":{"ordenes":109,"ventas":1744146.0},"Dom":{"ordenes":146,"ventas":2418906.0}},"pizzas":{"Margarita":497,"Napolitana":111,"Funghi del bosco":99,"Jamon & Provolone":140,"La nuestra":174,"Fugazza":59,"4 quesos":94,"Diavola":86,"Ed Limitada - LA BABY ROSA":42,"La Roja":3,"Faina":2},"combos":{"Combo Margarita para dos":{"ordenes":18,"ventas":379900.0},"Combo Margarita":{"ordenes":15,"ventas":171000.0},"Combo La nuestra":{"ordenes":21,"ventas":268500.0},"Combo Postres":{"ordenes":4,"ventas":20800.0},"Combo Focaccia":{"ordenes":1,"ventas":9500.0},"Combo Focaccia + Bebida":{"ordenes":1,"ventas":10500.0}},"rubros":{"Pizzas":{"cantidad":1235,"ventas":12887050.0},"Antipasti":{"cantidad":106,"ventas":581060.0},"Cervezas":{"cantidad":48,"ventas":228000.0},"Combos":{"cantidad":60,"ventas":860200.0},"Gaseosas y Aguas":{"cantidad":118,"ventas":314250.0},"Dips":{"cantidad":61,"ventas":88070.0},"Piegatas":{"cantidad":27,"ventas":255900.0},"Postres":{"cantidad":49,"ventas":129000.0},"Pizzas Veganas":{"cantidad":22,"ventas":189250.0},"Focaccias":{"cantidad":30,"ventas":266760.0},"Congeladas":{"cantidad":8,"ventas":180800.0}},"almendras":{"keto":0,"vegan":5}},{"periodo":"2025-02","anio":2025,"mes":2,"ordenes":812,"ventas":12836421.0,"ticket":15808.0,"canal":{"Delivery propio":{"ordenes":116,"ventas":2077603.0},"Mostrador":{"ordenes":295,"ventas":4754160.45},"PedidosYa":{"ordenes":401,"ventas":6004658.0}},"dias":{"Lun":{"ordenes":83,"ventas":1389137.0},"Mar":{"ordenes":84,"ventas":1358971.0},"Mie":{"ordenes":85,"ventas":1464910.0},"Jue":{"ordenes":96,"ventas":1423874.0},"Vie":{"ordenes":175,"ventas":2734655.45},"Sab":{"ordenes":127,"ventas":2101405.0},"Dom":{"ordenes":162,"ventas":2363469.0}},"pizzas":{"Jamon & Provolone":129,"Funghi del bosco":103,"Margarita":527,"La nuestra":133,"4 quesos":89,"Fugazza":53,"Napolitana":102,"Diavola":69,"La Roja":4,"Ed Limitada - LA BABY ROSA":27,"Faina":2},"combos":{"Combo La nuestra":{"ordenes":20,"ventas":254000.0},"Combo Postres":{"ordenes":12,"ventas":61900.0},"Combo Margarita para dos":{"ordenes":26,"ventas":558400.0},"Combo Margarita":{"ordenes":15,"ventas":176000.0},"Combo Focaccia":{"ordenes":1,"ventas":9500.0},"Combo Focaccia + Bebida":{"ordenes":2,"ventas":0.0}},"rubros":{"Pizzas":{"cantidad":1151,"ventas":12787540.0},"Piegatas":{"cantidad":43,"ventas":405600.0},"Postres":{"cantidad":88,"ventas":266900.0},"Combos":{"cantidad":76,"ventas":1059800.0},"Dips":{"cantidad":103,"ventas":133920.0},"Focaccias":{"cantidad":29,"ventas":285320.0},"Gaseosas y Aguas":{"cantidad":97,"ventas":289400.0},"Cervezas":{"cantidad":51,"ventas":283300.0},"Antipasti":{"cantidad":129,"ventas":630180.0},"Pizzas Veganas":{"cantidad":23,"ventas":269350.0},"Congeladas":{"cantidad":15,"ventas":936000.0},"Tragos":{"cantidad":2,"ventas":9900.0}},"almendras":{"keto":0,"vegan":7}},{"periodo":"2025-03","anio":2025,"mes":3,"ordenes":1044,"ventas":16976477.0,"ticket":16261.0,"canal":{"Delivery propio":{"ordenes":134,"ventas":2482614.24},"Mostrador":{"ordenes":330,"ventas":5342181.27},"PedidosYa":{"ordenes":580,"ventas":9151681.0}},"dias":{"Lun":{"ordenes":136,"ventas":2062022.0},"Mar":{"ordenes":62,"ventas":992010.0},"Mie":{"ordenes":90,"ventas":1323412.27},"Jue":{"ordenes":98,"ventas":1654408.0},"Vie":{"ordenes":214,"ventas":3498453.0},"Sab":{"ordenes":230,"ventas":4051732.24},"Dom":{"ordenes":214,"ventas":3394439.0}},"pizzas":{"Jamon & Provolone":134,"Margarita":628,"4 quesos":94,"Diavola":115,"La nuestra":178,"Muzza Clasica":63,"Funghi del bosco":125,"Napolitana":128,"Fugazza":84,"La Roja":10,"Faina":32,"Vegano - Pan de ajo":1},"combos":{"Combo Margarita":{"ordenes":21,"ventas":251000.0},"Combo La nuestra":{"ordenes":32,"ventas":409200.0},"Combo Margarita para dos":{"ordenes":53,"ventas":1500400.0},"Combo Postres":{"ordenes":23,"ventas":118200.0},"Combo Focaccia + Bebida":{"ordenes":1,"ventas":10500.0}},"rubros":{"Pizzas":{"cantidad":1432,"ventas":14773110.0},"Combos":{"cantidad":130,"ventas":2289300.0},"Antipasti":{"cantidad":148,"ventas":732790.0},"Gaseosas y Aguas":{"cantidad":66,"ventas":156700.0},"Postres":{"cantidad":128,"ventas":374700.0},"Dips":{"cantidad":91,"ventas":94720.0},"Piegatas":{"cantidad":66,"ventas":706300.0},"Cervezas":{"cantidad":27,"ventas":151100.0},"Pizzas Veganas":{"cantidad":49,"ventas":482300.0},"Focaccias":{"cantidad":52,"ventas":505110.0},"Tragos":{"cantidad":6,"ventas":36000.0},"Congeladas":{"cantidad":4,"ventas":54000.0}},"almendras":{"keto":0,"vegan":6}},{"periodo":"2025-04","anio":2025,"mes":4,"ordenes":824,"ventas":14272493.0,"ticket":17321.0,"canal":{"Delivery propio":{"ordenes":140,"ventas":2583456.0},"Mostrador":{"ordenes":260,"ventas":4547515.38},"PedidosYa":{"ordenes":424,"ventas":7141522.0}},"dias":{"Lun":{"ordenes":71,"ventas":1304492.38},"Mar":{"ordenes":93,"ventas":1561085.0},"Mie":{"ordenes":109,"ventas":1701825.0},"Jue":{"ordenes":92,"ventas":1656738.0},"Vie":{"ordenes":172,"ventas":3106387.0},"Sab":{"ordenes":160,"ventas":2828660.0},"Dom":{"ordenes":127,"ventas":2113306.0}},"pizzas":{"Margarita":408,"Jamon & Provolone":109,"La nuestra":162,"4 quesos":100,"Diavola":110,"Napolitana":103,"Ed Limitada - LA BABY ROSA":31,"Funghi del bosco":84,"Fugazza":60,"La Roja":8,"Faina":14,"Vegano - Pan de ajo":3,"Muzza Clasica":20},"combos":{"Combo La nuestra":{"ordenes":30,"ventas":405500.0},"Combo Margarita para dos":{"ordenes":27,"ventas":625920.0},"Combo Margarita":{"ordenes":22,"ventas":276600.0},"Combo Focaccia":{"ordenes":2,"ventas":24000.0},"Promo Margarita Estudiante":{"ordenes":2,"ventas":18000.0},"Combo Postres":{"ordenes":22,"ventas":125500.0},"Pizza + Bebida":{"ordenes":1,"ventas":10500.0},"Combo Focaccia + Bebida":{"ordenes":1,"ventas":10500.0}},"rubros":{"Focaccias":{"cantidad":38,"ventas":371270.0},"Pizzas":{"cantidad":1101,"ventas":11975788.0},"Cervezas":{"cantidad":38,"ventas":268300.0},"Combos":{"cantidad":107,"ventas":1496520.0},"Dips":{"cantidad":34,"ventas":48760.0},"Antipasti":{"cantidad":115,"ventas":612190.0},"Piegatas":{"cantidad":34,"ventas":350100.0},"Gaseosas y Aguas":{"cantidad":71,"ventas":207230.0},"Postres":{"cantidad":110,"ventas":249000.0},"Congeladas":{"cantidad":9,"ventas":274100.0},"Pizzas Veganas":{"cantidad":27,"ventas":314096.0},"Tragos":{"cantidad":4,"ventas":45800.0}},"almendras":{"keto":0,"vegan":10}},{"periodo":"2025-05","anio":2025,"mes":5,"ordenes":786,"ventas":14146290.0,"ticket":17998.0,"canal":{"Delivery propio":{"ordenes":116,"ventas":2186896.0},"Mostrador":{"ordenes":252,"ventas":4341420.0},"PedidosYa":{"ordenes":418,"ventas":7617974.0}},"dias":{"Lun":{"ordenes":55,"ventas":938378.0},"Mar":{"ordenes":63,"ventas":1096914.0},"Mie":{"ordenes":75,"ventas":1231448.0},"Jue":{"ordenes":76,"ventas":1368783.0},"Vie":{"ordenes":211,"ventas":4031026.0},"Sab":{"ordenes":191,"ventas":3519412.0},"Dom":{"ordenes":115,"ventas":1960329.0}},"pizzas":{"La nuestra":160,"Napolitana":79,"Margarita":369,"4 quesos":82,"Jamon & Provolone":97,"Fugazza":46,"Funghi del bosco":100,"Diavola":102,"Ed Limitada - LA BABY ROSA":28,"Vegano - Pan de ajo":2,"Faina":7,"La Roja":4},"combos":{"Locro En Pan De Pizza":{"ordenes":7,"ventas":98000.0},"Combo Margarita":{"ordenes":13,"ventas":164200.0},"Promo Margarita Estudiante":{"ordenes":11,"ventas":109500.0},"Combo Postres":{"ordenes":13,"ventas":79200.0},"Combo Margarita para dos":{"ordenes":22,"ventas":549740.0},"Pizza + Bebida":{"ordenes":1,"ventas":10500.0},"Combo La nuestra":{"ordenes":26,"ventas":357100.0},"Ensalada Mediterránea + Bebida a elección":{"ordenes":9,"ventas":7000.0},"Combo Focaccia":{"ordenes":2,"ventas":22200.0}},"rubros":{"Pizzas":{"cantidad":980,"ventas":11426948.0},"Dips":{"cantidad":25,"ventas":28830.0},"Postres":{"cantidad":85,"ventas":322800.0},"Gaseosas y Aguas":{"cantidad":64,"ventas":194410.0},"Combos":{"cantidad":104,"ventas":1397440.0},"Antipasti":{"cantidad":144,"ventas":769770.0},"Pizzas Veganas":{"cantidad":39,"ventas":553592.0},"Piegatas":{"cantidad":27,"ventas":298900.0},"Cervezas":{"cantidad":22,"ventas":125900.0},"Focaccias":{"cantidad":27,"ventas":260700.0},"Tragos":{"cantidad":22,"ventas":233000.0}},"almendras":{"keto":0,"vegan":5}},{"periodo":"2025-06","anio":2025,"mes":6,"ordenes":747,"ventas":14380053.0,"ticket":19250.0,"canal":{"Delivery propio":{"ordenes":134,"ventas":2834450.0},"Mostrador":{"ordenes":180,"ventas":3400052.3},"PedidosYa":{"ordenes":433,"ventas":8145551.0}},"dias":{"Lun":{"ordenes":71,"ventas":1175703.0},"Mar":{"ordenes":69,"ventas":1338287.0},"Mie":{"ordenes":60,"ventas":1124808.0},"Jue":{"ordenes":109,"ventas":2117115.0},"Vie":{"ordenes":158,"ventas":3081334.3},"Sab":{"ordenes":145,"ventas":2964445.0},"Dom":{"ordenes":135,"ventas":2578361.0}},"pizzas":{"Margarita":395,"Diavola":91,"4 quesos":75,"Jamon & Provolone":161,"La nuestra":144,"Napolitana":119,"Fugazza":48,"Funghi del bosco":102,"La Roja":5,"Vegano - Pan de ajo":1,"Ed Limitada - LA BABY ROSA":12,"Muzza Clasica":2,"Faina":10},"combos":{"Combo Margarita":{"ordenes":22,"ventas":284280.0},"Marga Mosca 2x1":{"ordenes":17,"ventas":189500.0},"Combo Margarita para dos":{"ordenes":23,"ventas":584064.0},"Combo La nuestra":{"ordenes":18,"ventas":262654.0},"Combo Focaccia":{"ordenes":3,"ventas":34880.0},"Combo Postres":{"ordenes":10,"ventas":77280.0},"Promo Margarita Estudiante":{"ordenes":2,"ventas":19500.0},"Pizza + Bebida":{"ordenes":1,"ventas":10500.0}},"rubros":{"Pizzas":{"cantidad":1042,"ventas":12981570.0},"Piegatas":{"cantidad":42,"ventas":398540.0},"Antipasti":{"cantidad":126,"ventas":471778.0},"Focaccias":{"cantidad":32,"ventas":362920.0},"Gaseosas y Aguas":{"cantidad":72,"ventas":213360.0},"Combos":{"cantidad":96,"ventas":1462658.0},"Pizzas Veganas":{"cantidad":33,"ventas":352145.0},"Dips":{"cantidad":79,"ventas":102908.0},"Postres":{"cantidad":50,"ventas":161706.0},"Cervezas":{"cantidad":18,"ventas":92780.0},"Tragos":{"cantidad":2,"ventas":0.0}},"almendras":{"keto":0,"vegan":7}},{"periodo":"2025-07","anio":2025,"mes":7,"ordenes":735,"ventas":13888220.0,"ticket":18896.0,"canal":{"Delivery propio":{"ordenes":152,"ventas":2978890.0},"Mostrador":{"ordenes":205,"ventas":3748539.0},"PedidosYa":{"ordenes":378,"ventas":7160791.02}},"dias":{"Lun":{"ordenes":66,"ventas":1046797.0},"Mar":{"ordenes":86,"ventas":1681841.0},"Mie":{"ordenes":82,"ventas":1382303.0},"Jue":{"ordenes":81,"ventas":1417177.0},"Vie":{"ordenes":140,"ventas":2757835.5},"Sab":{"ordenes":138,"ventas":2734229.6799999997},"Dom":{"ordenes":142,"ventas":2868036.84}},"pizzas":{"Margarita":366,"Diavola":113,"La nuestra":116,"4 quesos":74,"Funghi del bosco":73,"La Roja":6,"Jamon & Provolone":160,"Napolitana":82,"Ed Limitada Di zucca":19,"Fugazza":40,"Faina":19},"combos":{"Margarita + Diavola":{"ordenes":33,"ventas":758450.0},"Marga Mosca 2x1":{"ordenes":4,"ventas":50000.0},"Combo Margarita para dos":{"ordenes":22,"ventas":587361.0},"Jamon & Queso + La Nuestra":{"ordenes":21,"ventas":440700.0},"Combo Focaccia":{"ordenes":2,"ventas":22890.0},"Combo La nuestra":{"ordenes":15,"ventas":224040.0},"Funghi del bosco + 4 quesos":{"ordenes":5,"ventas":111300.0},"Combo Margarita":{"ordenes":26,"ventas":342000.0},"Combo Piegata":{"ordenes":9,"ventas":90100.0},"Promo Margarita Estudiante":{"ordenes":5,"ventas":53000.0},"Combo Postres":{"ordenes":2,"ventas":14000.0},"Diavola + La Nuestra":{"ordenes":8,"ventas":170800.0}},"rubros":{"Pizzas":{"cantidad":836,"ventas":9445528.0},"Gaseosas y Aguas":{"cantidad":63,"ventas":153000.0},"Dips":{"cantidad":68,"ventas":90048.0},"Focaccias":{"cantidad":39,"ventas":411010.0},"Piegatas":{"cantidad":107,"ventas":1097916.0},"Antipasti":{"cantidad":85,"ventas":427580.0},"Combos":{"cantidad":152,"ventas":2864641.0},"Cervezas":{"cantidad":23,"ventas":109230.0},"Postres":{"cantidad":39,"ventas":178090.0},"Pizzas Veganas":{"cantidad":35,"ventas":388759.0},"Tragos":{"cantidad":5,"ventas":10500.0}},"almendras":{"keto":8,"vegan":4}},{"periodo":"2025-08","anio":2025,"mes":8,"ordenes":935,"ventas":18376319.0,"ticket":19654.0,"canal":{"Delivery propio":{"ordenes":180,"ventas":3498910.0},"Mostrador":{"ordenes":266,"ventas":5380368.6},"PedidosYa":{"ordenes":489,"ventas":9497040.0}},"dias":{"Lun":{"ordenes":50,"ventas":946315.0},"Mar":{"ordenes":55,"ventas":1144050.0},"Mie":{"ordenes":78,"ventas":1567072.0},"Jue":{"ordenes":103,"ventas":2156568.0},"Vie":{"ordenes":224,"ventas":4466734.0},"Sab":{"ordenes":242,"ventas":4780537.6},"Dom":{"ordenes":183,"ventas":3315042.0}},"pizzas":{"4 quesos":137,"Diavola":220,"Jamon & Provolone":195,"Funghi del bosco":130,"Napolitana":83,"Margarita":441,"La nuestra":190,"La Roja":5,"Fugazza":51,"Faina":11,"Ed Limitada Di zucca":7},"combos":{"Combo La nuestra":{"ordenes":16,"ventas":227876.0},"Combo Postres":{"ordenes":2,"ventas":14000.0},"Diavola + La Nuestra":{"ordenes":33,"ventas":751500.0},"Promo Margarita Estudiante":{"ordenes":7,"ventas":70000.0},"Funghi del bosco + 4 quesos":{"ordenes":43,"ventas":994800.0},"Combo Margarita":{"ordenes":24,"ventas":312840.0},"Margarita + Diavola":{"ordenes":112,"ventas":2557060.0},"Jamon & Queso + La Nuestra":{"ordenes":39,"ventas":866000.0},"Combo Margarita para dos":{"ordenes":14,"ventas":364419.0},"Combo Piegata":{"ordenes":9,"ventas":78300.0},"Combo Focaccia":{"ordenes":2,"ventas":22890.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":12500.0}},"rubros":{"Antipasti":{"cantidad":78,"ventas":406915.0},"Pizzas":{"cantidad":939,"ventas":10517113.0},"Postres":{"cantidad":58,"ventas":352611.0},"Dips":{"cantidad":76,"ventas":116158.0},"Combos":{"cantidad":302,"ventas":6272185.0},"Piegatas":{"cantidad":149,"ventas":1579530.0},"Gaseosas y Aguas":{"cantidad":90,"ventas":270200.0},"Pizzas Veganas":{"cantidad":45,"ventas":504415.0},"Focaccias":{"cantidad":29,"ventas":360510.0},"Tragos":{"cantidad":3,"ventas":0.0},"Cervezas":{"cantidad":35,"ventas":179430.0}},"almendras":{"keto":86,"vegan":57}},{"periodo":"2025-09","anio":2025,"mes":9,"ordenes":875,"ventas":17060292.0,"ticket":19497.0,"canal":{"Delivery propio":{"ordenes":137,"ventas":2720021.0},"Mostrador":{"ordenes":243,"ventas":4958436.0},"PedidosYa":{"ordenes":495,"ventas":9381835.5}},"dias":{"Lun":{"ordenes":85,"ventas":1738506.0},"Mar":{"ordenes":81,"ventas":1620215.5},"Mie":{"ordenes":81,"ventas":1574026.0},"Jue":{"ordenes":93,"ventas":1846688.0},"Vie":{"ordenes":174,"ventas":3323279.0},"Sab":{"ordenes":182,"ventas":3576077.0},"Dom":{"ordenes":179,"ventas":3381501.0}},"pizzas":{"La nuestra":158,"Funghi del bosco":134,"Jamon & Provolone":179,"Margarita":479,"Fugazza":38,"4 quesos":132,"Diavola":188,"Napolitana":73,"La Roja":9,"Faina":5},"combos":{"Margarita + Diavola":{"ordenes":103,"ventas":2362030.0},"Diavola + La Nuestra":{"ordenes":20,"ventas":413640.0},"Combo Margarita":{"ordenes":26,"ventas":334200.0},"Jamon & Queso + La Nuestra":{"ordenes":49,"ventas":1056000.0},"Funghi del bosco + 4 quesos":{"ordenes":68,"ventas":1613300.0},"Marga Mosca 2x1":{"ordenes":27,"ventas":315630.0},"Combo Margarita para dos":{"ordenes":18,"ventas":477064.0},"Combo La nuestra":{"ordenes":21,"ventas":297000.0},"Combo Piegata":{"ordenes":11,"ventas":95700.0},"Promo Margarita Estudiante":{"ordenes":14,"ventas":140000.0},"Combo Postres":{"ordenes":2,"ventas":14000.0},"Combo Focaccia":{"ordenes":1,"ventas":11990.0}},"rubros":{"Pizzas":{"cantidad":764,"ventas":8283585.0},"Gaseosas y Aguas":{"cantidad":97,"ventas":255000.0},"Piegatas":{"cantidad":115,"ventas":1220310.0},"Cervezas":{"cantidad":36,"ventas":167940.0},"Focaccias":{"cantidad":41,"ventas":495395.0},"Combos":{"cantidad":360,"ventas":7130554.0},"Dips":{"cantidad":69,"ventas":89608.0},"Antipasti":{"cantidad":81,"ventas":435810.0},"Pizzas Veganas":{"cantidad":39,"ventas":418720.0},"Postres":{"cantidad":47,"ventas":213010.0},"Tragos":{"cantidad":12,"ventas":22500.0},"Congeladas":{"cantidad":15,"ventas":2070000.0}},"almendras":{"keto":60,"vegan":25}},{"periodo":"2025-10","anio":2025,"mes":10,"ordenes":974,"ventas":18692046.0,"ticket":19191.0,"canal":{"Delivery propio":{"ordenes":124,"ventas":2428417.0},"Mostrador":{"ordenes":282,"ventas":5453723.08},"PedidosYa":{"ordenes":568,"ventas":10809906.0}},"dias":{"Lun":{"ordenes":58,"ventas":1071261.0},"Mar":{"ordenes":87,"ventas":1620663.0499999998},"Mie":{"ordenes":107,"ventas":1891771.0},"Jue":{"ordenes":140,"ventas":2879720.0},"Vie":{"ordenes":201,"ventas":3805553.0},"Sab":{"ordenes":207,"ventas":4077329.0},"Dom":{"ordenes":174,"ventas":3345749.0300000003}},"pizzas":{"Jamon & Provolone":204,"Margarita":510,"Fugazza":38,"Funghi del bosco":135,"Napolitana":72,"La nuestra":207,"Diavola":231,"4 quesos":137,"La Roja":7},"combos":{"Funghi del bosco + 4 quesos":{"ordenes":73,"ventas":1743500.0},"Jamon & Queso + La Nuestra":{"ordenes":67,"ventas":1553900.0},"Combo Piegata":{"ordenes":9,"ventas":78300.0},"Margarita + Diavola":{"ordenes":128,"ventas":2903780.0},"Combo La nuestra":{"ordenes":24,"ventas":347800.0},"Marga Mosca 2x1":{"ordenes":50,"ventas":650400.0},"Diavola + La Nuestra":{"ordenes":22,"ventas":485600.0},"Promo Margarita Estudiante":{"ordenes":11,"ventas":110000.0},"Combo Focaccia":{"ordenes":3,"ventas":34880.0},"Combo Margarita para dos":{"ordenes":12,"ventas":311844.0},"Combo Margarita":{"ordenes":29,"ventas":378300.0},"Combo Postres":{"ordenes":2,"ventas":14500.0}},"rubros":{"Pizzas":{"cantidad":773,"ventas":8373370.0},"Focaccias":{"cantidad":32,"ventas":349280.0},"Dips":{"cantidad":78,"ventas":120180.0},"Gaseosas y Aguas":{"cantidad":111,"ventas":291400.0},"Cervezas":{"cantidad":39,"ventas":257670.0},"Piegatas":{"cantidad":132,"ventas":1372890.0},"Antipasti":{"cantidad":68,"ventas":367210.0},"Postres":{"cantidad":39,"ventas":158927.0},"Combos":{"cantidad":430,"ventas":8612804.0},"Pizzas Veganas":{"cantidad":47,"ventas":514885.0},"Tragos":{"cantidad":5,"ventas":4500.0}},"almendras":{"keto":57,"vegan":5}},{"periodo":"2025-11","anio":2025,"mes":11,"ordenes":948,"ventas":18539430.0,"ticket":19556.0,"canal":{"Delivery propio":{"ordenes":158,"ventas":3337284.0},"Mostrador":{"ordenes":316,"ventas":5920547.0},"PedidosYa":{"ordenes":474,"ventas":9281599.0}},"dias":{"Lun":{"ordenes":78,"ventas":1689434.0},"Mar":{"ordenes":71,"ventas":1432516.0},"Mie":{"ordenes":92,"ventas":1877122.0},"Jue":{"ordenes":105,"ventas":1920749.0},"Vie":{"ordenes":174,"ventas":3657744.0},"Sab":{"ordenes":240,"ventas":4356583.0},"Dom":{"ordenes":188,"ventas":3605282.0}},"pizzas":{"Fugazza":59,"Margarita":441,"Jamon & Provolone":167,"Funghi del bosco":118,"4 quesos":121,"Napolitana":75,"Ed Limitada Di zucca":23,"Diavola":172,"La nuestra":179,"Faina":1,"La Roja":4,"Vegano - Pan de ajo":2},"combos":{"Margarita + Diavola":{"ordenes":78,"ventas":1735470.0},"Diavola + La Nuestra":{"ordenes":26,"ventas":602100.0},"Combo Margarita":{"ordenes":30,"ventas":401300.0},"Combo Margarita para dos":{"ordenes":8,"ventas":193624.0},"Combo Piegata":{"ordenes":14,"ventas":121800.0},"Combo Focaccia":{"ordenes":6,"ventas":76580.0},"Jamon & Queso + La Nuestra":{"ordenes":47,"ventas":1084100.0},"Combo La nuestra":{"ordenes":18,"ventas":285700.0},"Funghi del bosco + 4 quesos":{"ordenes":56,"ventas":1306500.0},"Promo Margarita Estudiante":{"ordenes":17,"ventas":177500.0},"Marga Mosca 2x1":{"ordenes":22,"ventas":336000.0},"Combo Postres":{"ordenes":2,"ventas":15000.0}},"rubros":{"Pizzas":{"cantidad":821,"ventas":9722510.0},"Gaseosas y Aguas":{"cantidad":129,"ventas":383600.0},"Dips":{"cantidad":69,"ventas":101860.0},"Cervezas":{"cantidad":45,"ventas":267620.0},"Antipasti":{"cantidad":82,"ventas":468150.0},"Postres":{"cantidad":40,"ventas":198960.0},"Piegatas":{"cantidad":141,"ventas":1584390.0},"Pizzas Veganas":{"cantidad":42,"ventas":466740.0},"Combos":{"cantidad":324,"ventas":6335674.0},"Focaccias":{"cantidad":61,"ventas":838350.0},"Tragos":{"cantidad":7,"ventas":19200.0}},"almendras":{"keto":84,"vegan":10}},{"periodo":"2025-12","anio":2025,"mes":12,"ordenes":776,"ventas":16151062.0,"ticket":20813.0,"canal":{"Delivery propio":{"ordenes":141,"ventas":3062405.0},"Mostrador":{"ordenes":306,"ventas":5994806.0},"PedidosYa":{"ordenes":329,"ventas":7093851.0}},"dias":{"Lun":{"ordenes":112,"ventas":2269918.0},"Mar":{"ordenes":96,"ventas":2122318.0},"Mie":{"ordenes":56,"ventas":1173328.0},"Jue":{"ordenes":98,"ventas":2208742.0},"Vie":{"ordenes":135,"ventas":2669646.0},"Sab":{"ordenes":137,"ventas":2796898.0},"Dom":{"ordenes":142,"ventas":2910212.0}},"pizzas":{"Margarita":296,"Jamon & Provolone":159,"La nuestra":157,"Funghi del bosco":91,"4 quesos":110,"Diavola":130,"Napolitana":89,"Fugazza":61,"Ed Limitada Di zucca":37,"La Roja":4,"Vegano - Pan de ajo":1},"combos":{"Combo Margarita":{"ordenes":36,"ventas":503400.0},"Jamon & Queso + La Nuestra":{"ordenes":28,"ventas":676700.0},"Funghi del bosco + 4 quesos":{"ordenes":24,"ventas":619850.0},"Margarita + Diavola":{"ordenes":27,"ventas":619650.0},"Combo La nuestra":{"ordenes":14,"ventas":242000.0},"Diavola + La Nuestra":{"ordenes":31,"ventas":764400.0},"Combo Margarita para dos":{"ordenes":7,"ventas":173600.0},"Combo Piegata":{"ordenes":7,"ventas":66750.0},"Combo Postres":{"ordenes":3,"ventas":34500.0},"Combo Focaccia":{"ordenes":1,"ventas":15950.0}},"rubros":{"Combos":{"cantidad":178,"ventas":3716800.0},"Pizzas":{"cantidad":850,"ventas":10678320.0},"Pizzas Veganas":{"cantidad":41,"ventas":511390.0},"Focaccias":{"cantidad":31,"ventas":409000.0},"Tragos":{"cantidad":7,"ventas":49500.0},"Cervezas":{"cantidad":53,"ventas":432320.0},"Gaseosas y Aguas":{"cantidad":120,"ventas":335360.0},"Piegatas":{"cantidad":56,"ventas":606000.0},"Dips":{"cantidad":77,"ventas":126890.0},"Antipasti":{"cantidad":66,"ventas":435160.0},"Postres":{"cantidad":35,"ventas":219400.0}},"almendras":{"keto":52,"vegan":3}},{"periodo":"2026-01","anio":2026,"mes":1,"ordenes":788,"ventas":16062318.0,"ticket":20384.0,"canal":{"Delivery propio":{"ordenes":105,"ventas":2265442.0},"Mostrador":{"ordenes":290,"ventas":5560706.0},"PedidosYa":{"ordenes":393,"ventas":8236170.0}},"dias":{"Lun":{"ordenes":83,"ventas":1698934.0},"Mar":{"ordenes":71,"ventas":1573258.0},"Mie":{"ordenes":86,"ventas":1731638.0},"Jue":{"ordenes":96,"ventas":1965824.0},"Vie":{"ordenes":167,"ventas":3521348.0},"Sab":{"ordenes":135,"ventas":2605456.0},"Dom":{"ordenes":150,"ventas":2965860.0}},"pizzas":{"Fugazza":41,"Jamon & Provolone":153,"Napolitana":84,"Margarita":334,"La Roja":5,"4 quesos":111,"La nuestra":148,"Ed Limitada Di zucca":46,"Funghi del bosco":88,"Diavola":117},"combos":{"Combo Margarita":{"ordenes":40,"ventas":562800.0},"Jamon & Queso + La Nuestra":{"ordenes":34,"ventas":833700.0},"Combo La nuestra":{"ordenes":17,"ventas":294500.0},"Margarita + Diavola":{"ordenes":30,"ventas":688500.0},"Funghi del bosco + 4 quesos":{"ordenes":34,"ventas":943250.0},"Combo Piegata":{"ordenes":15,"ventas":146850.0},"Combo Margarita para dos":{"ordenes":6,"ventas":148800.0},"Diavola + La Nuestra":{"ordenes":23,"ventas":568100.0}},"rubros":{"Gaseosas y Aguas":{"cantidad":111,"ventas":312080.0},"Pizzas":{"cantidad":816,"ventas":10217240.0},"Dips":{"cantidad":52,"ventas":92390.0},"Combos":{"cantidad":199,"ventas":4186500.0},"Postres":{"cantidad":27,"ventas":265050.0},"Piegatas":{"cantidad":97,"ventas":1185100.0},"Cervezas":{"cantidad":45,"ventas":310820.0},"Antipasti":{"cantidad":69,"ventas":460140.0},"Tragos":{"cantidad":2,"ventas":9000.0},"Pizzas Veganas":{"cantidad":38,"ventas":452120.0},"Focaccias":{"cantidad":16,"ventas":234000.0}},"almendras":{"keto":41,"vegan":22}},{"periodo":"2026-02","anio":2026,"mes":2,"ordenes":735,"ventas":15158873.0,"ticket":20624.0,"canal":{"Delivery propio":{"ordenes":148,"ventas":3129094.0},"Mostrador":{"ordenes":230,"ventas":4703099.0},"PedidosYa":{"ordenes":357,"ventas":7326680.0}},"dias":{"Lun":{"ordenes":112,"ventas":2251936.0},"Mar":{"ordenes":88,"ventas":1754185.0},"Mie":{"ordenes":84,"ventas":1530561.0},"Jue":{"ordenes":76,"ventas":1743837.0},"Vie":{"ordenes":133,"ventas":2595805.0},"Sab":{"ordenes":112,"ventas":2484090.0},"Dom":{"ordenes":130,"ventas":2798459.0}},"pizzas":{"Margarita":287,"La nuestra":142,"Napolitana":82,"Funghi del bosco":79,"Jamon & Provolone":145,"Fugazza":46,"Diavola":111,"Ed Limitada Di zucca":34,"4 quesos":84,"La Roja":2,"Vegano - Pan de ajo":1},"combos":{"Margarita + Diavola":{"ordenes":31,"ventas":766600.0},"Combo La nuestra":{"ordenes":8,"ventas":146000.0},"Jamon & Queso + La Nuestra":{"ordenes":32,"ventas":873300.0},"Diavola + La Nuestra":{"ordenes":27,"ventas":688500.0},"Funghi del bosco + 4 quesos":{"ordenes":20,"ventas":537850.0},"Combo Margarita":{"ordenes":29,"ventas":419500.0},"Combo Margarita para dos":{"ordenes":1,"ventas":27200.0},"Combo Piegata":{"ordenes":7,"ventas":60690.0},"Combo Postres":{"ordenes":1,"ventas":11500.0},"Combo Focaccia":{"ordenes":1,"ventas":14500.0}},"rubros":{"Pizzas":{"cantidad":753,"ventas":9411010.0},"Postres":{"cantidad":25,"ventas":178600.0},"Gaseosas y Aguas":{"cantidad":127,"ventas":357770.0},"Dips":{"cantidad":48,"ventas":97200.0},"Piegatas":{"cantidad":129,"ventas":1587500.0},"Antipasti":{"cantidad":65,"ventas":441600.0},"Pizzas Veganas":{"cantidad":24,"ventas":288300.0},"Tragos":{"cantidad":65,"ventas":83300.0},"Combos":{"cantidad":157,"ventas":3545640.0},"Cervezas":{"cantidad":45,"ventas":271480.0},"Focaccias":{"cantidad":10,"ventas":134500.0}},"almendras":{"keto":50,"vegan":6}},{"periodo":"2026-03","anio":2026,"mes":3,"ordenes":776,"ventas":17152244.0,"ticket":22103.0,"canal":{"Delivery propio":{"ordenes":168,"ventas":3844698.0},"Mostrador":{"ordenes":201,"ventas":4340100.0},"PedidosYa":{"ordenes":407,"ventas":8967446.4}},"dias":{"Lun":{"ordenes":115,"ventas":2678633.1999999997},"Mar":{"ordenes":83,"ventas":1721318.0},"Mie":{"ordenes":84,"ventas":1928091.2000000002},"Jue":{"ordenes":91,"ventas":2024863.6},"Vie":{"ordenes":136,"ventas":3253909.0},"Sab":{"ordenes":154,"ventas":3179759.4},"Dom":{"ordenes":113,"ventas":2365670.0}},"pizzas":{"Ed Limitada Di zucca":46,"Diavola":123,"Napolitana":109,"Margarita":336,"Jamon & Provolone":170,"4 quesos":86,"Funghi del bosco":82,"La nuestra":153,"Fugazza":37,"Nido de Camembert & Miel Brava":1,"La Roja":2},"combos":{"Combo Margarita para dos":{"ordenes":7,"ventas":212700.0},"Combo Piegata":{"ordenes":5,"ventas":54100.0},"Jamon & Queso + La Nuestra":{"ordenes":36,"ventas":945100.0},"Margarita + Diavola":{"ordenes":38,"ventas":940900.0},"Diavola + La Nuestra":{"ordenes":28,"ventas":734900.0},"Combo Margarita":{"ordenes":27,"ventas":415800.0},"Funghi del bosco + 4 quesos":{"ordenes":19,"ventas":526500.0},"Combo La nuestra":{"ordenes":13,"ventas":242900.0},"Marga Mosca 2x1":{"ordenes":7,"ventas":75000.0},"Combo Postres":{"ordenes":1,"ventas":11500.0}},"rubros":{"Postres":{"cantidad":30,"ventas":213900.0},"Pizzas":{"cantidad":835,"ventas":11397820.0},"Dips":{"cantidad":56,"ventas":138500.0},"Combos":{"cantidad":181,"ventas":4159400.0},"Tragos":{"cantidad":81,"ventas":111900.0},"Piegatas":{"cantidad":124,"ventas":1585200.0},"Gaseosas y Aguas":{"cantidad":99,"ventas":315530.0},"Cervezas":{"cantidad":29,"ventas":194720.0},"Antipasti":{"cantidad":67,"ventas":434100.0},"Pizzas Veganas":{"cantidad":30,"ventas":404800.0},"Focaccias":{"cantidad":14,"ventas":191100.0}},"almendras":{"keto":58,"vegan":11}},{"periodo":"2026-04","anio":2026,"mes":4,"ordenes":688,"ventas":14607408.0,"ticket":21232.0,"canal":{"Delivery propio":{"ordenes":139,"ventas":3268266.0},"Mostrador":{"ordenes":179,"ventas":3409769.0},"PedidosYa":{"ordenes":370,"ventas":7929372.600000001}},"dias":{"Lun":{"ordenes":65,"ventas":1343723.0},"Mar":{"ordenes":81,"ventas":1660432.6},"Mie":{"ordenes":89,"ventas":1927721.0},"Jue":{"ordenes":102,"ventas":2064519.8},"Vie":{"ordenes":131,"ventas":3002762.8},"Sab":{"ordenes":124,"ventas":2677107.5999999996},"Dom":{"ordenes":96,"ventas":1931140.8}},"pizzas":{"Jamon & Provolone":132,"La nuestra":112,"Margarita":270,"Diavola":108,"Funghi del bosco":65,"Fugazza":43,"Napolitana":73,"4 quesos":78,"Ed Limitada Di zucca":16,"La Roja":2},"combos":{"Jamon & Queso + La Nuestra":{"ordenes":23,"ventas":625200.0},"Margarita + Diavola":{"ordenes":32,"ventas":914200.0},"Combo Margarita para dos":{"ordenes":6,"ventas":187000.0},"Combo Margarita":{"ordenes":19,"ventas":302100.0},"Funghi del bosco + 4 quesos":{"ordenes":13,"ventas":377100.0},"Diavola + La Nuestra":{"ordenes":19,"ventas":519400.0},"Combo Piegata":{"ordenes":7,"ventas":65400.0},"Combo La nuestra":{"ordenes":5,"ventas":93200.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":11000.0}},"rubros":{"Pizzas":{"cantidad":687,"ventas":9512635.0},"Combos":{"cantidad":125,"ventas":3094600.0},"Gaseosas y Aguas":{"cantidad":73,"ventas":209250.0},"Antipasti":{"cantidad":58,"ventas":425000.0},"Tragos":{"cantidad":62,"ventas":102500.0},"Focaccias":{"cantidad":22,"ventas":324300.0},"Cervezas":{"cantidad":26,"ventas":166600.0},"Piegatas":{"cantidad":160,"ventas":2304900.0},"Postres":{"cantidad":33,"ventas":264400.0},"Dips":{"cantidad":52,"ventas":133300.0},"Pizzas Veganas":{"cantidad":19,"ventas":258200.0}},"almendras":{"keto":46,"vegan":9}},{"periodo":"2026-05","anio":2026,"mes":5,"ordenes":769,"ventas":15869183.0,"ticket":20636.0,"canal":{"Delivery propio":{"ordenes":148,"ventas":3189117.0},"Mostrador":{"ordenes":145,"ventas":2865316.0},"PedidosYa":{"ordenes":476,"ventas":9814750.0}},"dias":{"Lun":{"ordenes":59,"ventas":1299490.0},"Mar":{"ordenes":66,"ventas":1107654.0},"Mie":{"ordenes":55,"ventas":1016709.0},"Jue":{"ordenes":101,"ventas":1902090.0},"Vie":{"ordenes":169,"ventas":3539738.0},"Sab":{"ordenes":170,"ventas":3998756.0},"Dom":{"ordenes":149,"ventas":3004746.0}},"pizzas":{"Margarita":420,"Ed Limitada Di zucca":22,"Jamon & Provolone":127,"4 quesos":83,"Napolitana":71,"Diavola":69,"La nuestra":108,"Fugazza":34,"Funghi del bosco":55,"Vegano - Pan de ajo":1,"La Peppe":54,"La Roja":3},"combos":{"Diavola + La Nuestra":{"ordenes":8,"ventas":221800.0},"Funghi del bosco + 4 quesos":{"ordenes":11,"ventas":327300.0},"Combo Margarita para dos":{"ordenes":5,"ventas":146600.0},"Combo Margarita":{"ordenes":20,"ventas":322800.0},"Margarita + Diavola":{"ordenes":9,"ventas":281400.0},"Combo La nuestra":{"ordenes":9,"ventas":178900.0},"Jamon & Queso + La Nuestra":{"ordenes":18,"ventas":562600.0},"Marga Mosca 2x1":{"ordenes":2,"ventas":22000.0},"Combo Piegata":{"ordenes":2,"ventas":21800.0},"Combo Postres":{"ordenes":1,"ventas":13500.0},"Margarita + La Peppe":{"ordenes":46,"ventas":1303500.0},"La Peppe + La Nuestra":{"ordenes":8,"ventas":227200.0}},"rubros":{"Pizzas":{"cantidad":803,"ventas":11080150.0},"Piegatas":{"cantidad":27,"ventas":273000.0},"Focaccias":{"cantidad":8,"ventas":146600.0},"Antipasti":{"cantidad":67,"ventas":547000.0},"Combos":{"cantidad":139,"ventas":3629400.0},"Tragos":{"cantidad":24,"ventas":40500.0},"Postres":{"cantidad":26,"ventas":183800.0},"Dips":{"cantidad":45,"ventas":111400.0},"Gaseosas y Aguas":{"cantidad":62,"ventas":195750.0},"Cervezas":{"cantidad":15,"ventas":101300.0},"Pizzas Veganas":{"cantidad":21,"ventas":312700.0},"Paninos":{"cantidad":99,"ventas":1100200.0}},"almendras":{"keto":43,"vegan":3}},{"periodo":"2026-06","anio":2026,"mes":6,"ordenes":652,"ventas":14941482.0,"ticket":22916.0,"canal":{"Delivery propio":{"ordenes":160,"ventas":4273103.0},"Mostrador":{"ordenes":120,"ventas":2413027.0},"PedidosYa":{"ordenes":372,"ventas":8255351.6}},"dias":{"Lun":{"ordenes":91,"ventas":1980608.5},"Mar":{"ordenes":72,"ventas":1808664.0},"Mie":{"ordenes":54,"ventas":1188866.9},"Jue":{"ordenes":79,"ventas":1641115.9},"Vie":{"ordenes":126,"ventas":2852931.0},"Sab":{"ordenes":115,"ventas":2688501.0},"Dom":{"ordenes":115,"ventas":2780794.3}},"pizzas":{"Diavola":40,"Napolitana":48,"Margarita":332,"La nuestra":103,"Funghi del bosco":58,"Jamon & Provolone":112,"La Peppe":89,"4 quesos":69,"Ed Limitada Di zucca":4,"Fugazza":37,"La Roja":5,"Ed Limitada La Argenta":15,"La Dolce Peppe":9,"La Tricolore":11},"combos":{"Margarita + La Peppe":{"ordenes":65,"ventas":2440100.0},"Jamon & Queso + La Nuestra":{"ordenes":19,"ventas":535800.0},"Combo Margarita":{"ordenes":12,"ventas":198100.0},"Funghi del bosco + 4 quesos":{"ordenes":10,"ventas":283100.0},"Combo Postres":{"ordenes":3,"ventas":39600.0},"La Peppe + La Nuestra":{"ordenes":12,"ventas":395300.0},"Combo Margarita para dos":{"ordenes":13,"ventas":421680.0},"Marga Mosca 2x1":{"ordenes":4,"ventas":48000.0},"Promo Margarita Estudiante":{"ordenes":14,"ventas":109500.0},"Combo La nuestra":{"ordenes":8,"ventas":160800.0}},"rubros":{"Pizzas":{"cantidad":652,"ventas":10267350.0},"Antipasti":{"cantidad":50,"ventas":553100.0},"Combos":{"cantidad":160,"ventas":4631980.0},"Dips":{"cantidad":45,"ventas":112750.0},"Paninos":{"cantidad":140,"ventas":1801150.0},"Postres":{"cantidad":42,"ventas":239900.0},"Gaseosas y Aguas":{"cantidad":57,"ventas":168600.0},"Pizzas Veganas":{"cantidad":7,"ventas":103000.0},"Cervezas":{"cantidad":25,"ventas":174500.0}},"almendras":{"keto":50,"vegan":9}},{"periodo":"2026-07","anio":2026,"mes":7,"ordenes":713,"ventas":16247917.0,"ticket":22788.0,"canal":{"Delivery propio":{"ordenes":169,"ventas":4385114.0},"Mostrador":{"ordenes":150,"ventas":3644580.0},"PedidosYa":{"ordenes":394,"ventas":8218222.7}},"dias":{"Lun":{"ordenes":45,"ventas":1030696.5},"Mar":{"ordenes":63,"ventas":1464960.4},"Mie":{"ordenes":97,"ventas":2023808.5},"Jue":{"ordenes":87,"ventas":1916194.5},"Vie":{"ordenes":175,"ventas":3949498.3},"Sab":{"ordenes":129,"ventas":3095212.1},"Dom":{"ordenes":117,"ventas":2767546.4}},"pizzas":{"Napolitana":70,"La nuestra":104,"Margarita":418,"Jamon & Provolone":111,"Fugazza":28,"4 quesos":81,"Diavola":33,"Funghi del bosco":65,"La Peppe":61,"La Tricolore":14,"Faina":20,"La Dolce Peppe":20,"Muzza Clasica":57,"La Roja":4,"Ed Limitada La Argenta":12},"combos":{"Combo Margarita para dos":{"ordenes":11,"ventas":376500.0},"Combo La nuestra":{"ordenes":12,"ventas":243000.0},"Margarita + La Peppe":{"ordenes":42,"ventas":1201250.0},"Jamon & Queso + La Nuestra":{"ordenes":13,"ventas":378100.0},"La Peppe + La Nuestra":{"ordenes":8,"ventas":235100.0},"Promo Margarita Estudiante":{"ordenes":12,"ventas":165000.0},"Marga Mosca 2x1":{"ordenes":10,"ventas":303400.0},"Combo Margarita":{"ordenes":10,"ventas":172200.0},"Funghi del bosco + 4 quesos":{"ordenes":21,"ventas":625200.0},"Dos Muzza Clásica":{"ordenes":17,"ventas":459000.0},"Combo Postres":{"ordenes":1,"ventas":12400.0}},"rubros":{"Pizzas":{"cantidad":786,"ventas":11586250.0},"Antipasti":{"cantidad":54,"ventas":624500.0},"Combos":{"cantidad":157,"ventas":4171150.0},"Gaseosas y Aguas":{"cantidad":77,"ventas":225100.0},"Paninos":{"cantidad":98,"ventas":1061900.0},"Postres":{"cantidad":38,"ventas":372300.0},"Dips":{"cantidad":36,"ventas":108700.0},"La Grosa al Molde":{"cantidad":34,"ventas":825200.0},"Cervezas":{"cantidad":21,"ventas":129600.0},"Pizzas Veganas":{"cantidad":10,"ventas":144200.0}},"almendras":{"keto":52,"vegan":18}},{"periodo":"2026-08","anio":2026,"mes":8,"ordenes":888,"ventas":19379766.0,"ticket":21824.0,"canal":{"Delivery propio":{"ordenes":163,"ventas":4302238.0},"Mostrador":{"ordenes":150,"ventas":3559519.0},"PedidosYa":{"ordenes":575,"ventas":11518009.100000001}},"dias":{"Lun":{"ordenes":114,"ventas":2290530.0},"Mar":{"ordenes":50,"ventas":897092.0},"Mie":{"ordenes":83,"ventas":1872923.2000000002},"Jue":{"ordenes":102,"ventas":2254302.9},"Vie":{"ordenes":171,"ventas":3831362.9},"Sab":{"ordenes":212,"ventas":4692899.4},"Dom":{"ordenes":156,"ventas":3540655.7}},"pizzas":{"4 quesos":98,"Jamon & Provolone":189,"Margarita":421,"Muzza Clasica":349,"Fugazza":26,"Funghi del bosco":73,"La nuestra":102,"La Peppe":88,"Napolitana":57,"La Tricolore":31,"La Dolce Peppe":20,"Diavola":30,"Faina":45,"La Roja":1},"combos":{"Margarita + La Peppe":{"ordenes":45,"ventas":1353800.0},"Dos Muzza Clásica":{"ordenes":108,"ventas":2916000.0},"Marga Mosca 2x1":{"ordenes":6,"ventas":101600.0},"Combo Margarita":{"ordenes":9,"ventas":158500.0},"Jamon & Queso + La Nuestra":{"ordenes":19,"ventas":554700.0},"La Peppe + La Nuestra":{"ordenes":17,"ventas":518100.0},"Funghi del bosco + 4 quesos":{"ordenes":29,"ventas":880150.0},"Combo Margarita para dos":{"ordenes":2,"ventas":65400.0},"Combo Postres":{"ordenes":1,"ventas":13640.0},"Promo Margarita Estudiante":{"ordenes":8,"ventas":64500.0},"Combo La nuestra":{"ordenes":4,"ventas":81000.0}},"rubros":{"Pizzas":{"cantidad":1006,"ventas":15593150.0},"Gaseosas y Aguas":{"cantidad":87,"ventas":246060.0},"Paninos":{"cantidad":65,"ventas":689360.0},"Combos":{"cantidad":248,"ventas":6707390.0},"Antipasti":{"cantidad":90,"ventas":477400.0},"Dips":{"cantidad":26,"ventas":63400.0},"Postres":{"cantidad":41,"ventas":312900.0},"La Grosa al Molde":{"cantidad":51,"ventas":1129600.0},"Cervezas":{"cantidad":39,"ventas":294400.0},"Pizzas Veganas":{"cantidad":2,"ventas":28000.0}},"almendras":{"keto":47,"vegan":12}},{"periodo":"2026-09","anio":2026,"mes":9,"ordenes":835,"ventas":17494274.0,"ticket":20951.0,"canal":{"Delivery propio":{"ordenes":138,"ventas":3484092.0},"Mostrador":{"ordenes":129,"ventas":2919139.0},"PedidosYa":{"ordenes":568,"ventas":11091043.0}},"dias":{"Lun":{"ordenes":71,"ventas":1452066.0},"Mar":{"ordenes":107,"ventas":2052666.0},"Mie":{"ordenes":105,"ventas":2141592.0},"Jue":{"ordenes":95,"ventas":1993933.0},"Vie":{"ordenes":178,"ventas":3699715.0},"Sab":{"ordenes":150,"ventas":3394424.0},"Dom":{"ordenes":129,"ventas":2759878.0}},"pizzas":{"Muzza Clasica":371,"Jamon & Provolone":130,"La nuestra":95,"4 quesos":78,"Diavola":20,"Margarita":370,"La Peppe":88,"Napolitana":44,"Funghi del bosco":65,"Fugazza":23,"La Tricolore":23,"La Dolce Peppe":11,"Faina":29,"La Roja":2},"combos":{"Dos Muzza Clásica":{"ordenes":96,"ventas":2592000.0},"Margarita + La Peppe":{"ordenes":56,"ventas":1610100.0},"La Peppe + La Nuestra":{"ordenes":15,"ventas":447800.0},"Combo Postres":{"ordenes":7,"ventas":91760.0},"Funghi del bosco + 4 quesos":{"ordenes":21,"ventas":650900.0},"Combo Margarita para dos":{"ordenes":2,"ventas":62800.0},"Promo Margarita Estudiante":{"ordenes":3,"ventas":22500.0},"Jamon & Queso + La Nuestra":{"ordenes":14,"ventas":412000.0},"Combo La nuestra":{"ordenes":6,"ventas":124800.0},"Combo Margarita":{"ordenes":6,"ventas":106500.0},"Marga Mosca 2x1":{"ordenes":5,"ventas":88900.0}},"rubros":{"Pizzas":{"cantidad":882,"ventas":12733750.0},"Paninos":{"cantidad":68,"ventas":759440.0},"Gaseosas y Aguas":{"cantidad":81,"ventas":212320.0},"Combos":{"cantidad":231,"ventas":6210060.0},"Cervezas":{"cantidad":36,"ventas":273800.0},"Postres":{"cantidad":46,"ventas":215000.0},"Antipasti":{"cantidad":67,"ventas":356200.0},"La Grosa al Molde":{"cantidad":34,"ventas":779300.0},"Dips":{"cantidad":28,"ventas":82200.0},"Pizzas Veganas":{"cantidad":8,"ventas":109900.0}},"almendras":{"keto":33,"vegan":12}},{"periodo":"2026-10","anio":2026,"mes":10,"ordenes":1048,"ventas":21720054.0,"ticket":20725.0,"canal":{"Delivery propio":{"ordenes":138,"ventas":3539021.0},"Mostrador":{"ordenes":117,"ventas":2608150.0},"PedidosYa":{"ordenes":793,"ventas":15572883.0}},"dias":{"Lun":{"ordenes":125,"ventas":2553237.0},"Mar":{"ordenes":100,"ventas":1816766.0},"Mie":{"ordenes":87,"ventas":1560217.0},"Jue":{"ordenes":133,"ventas":2717827.0},"Vie":{"ordenes":219,"ventas":4672287.5},"Sab":{"ordenes":225,"ventas":5278611.5},"Dom":{"ordenes":159,"ventas":3121108.0}},"pizzas":{"Muzza Clasica":487,"Jamon & Provolone":173,"Napolitana":63,"La Grosa Mundiale":13,"La nuestra":104,"Margarita":505,"La Peppe":126,"La Dolce Peppe":16,"Funghi del bosco":59,"4 quesos":71,"Diavola":20,"Faina":30,"La Tricolore":11,"Fugazza":22,"La Roja":1},"combos":{"Dos Muzza Clásica":{"ordenes":133,"ventas":3721000.0},"Margarita + La Peppe":{"ordenes":88,"ventas":2556650.0},"Funghi del bosco + 4 quesos":{"ordenes":15,"ventas":490400.0},"Combo La nuestra":{"ordenes":5,"ventas":110900.0},"Combo Margarita":{"ordenes":5,"ventas":93600.0},"La Peppe + La Nuestra":{"ordenes":15,"ventas":474000.0},"Jamon & Queso + La Nuestra":{"ordenes":17,"ventas":521200.0},"Combo Margarita para dos":{"ordenes":3,"ventas":97500.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":12700.0},"Combo Postres":{"ordenes":1,"ventas":13750.0}},"rubros":{"Pizzas":{"cantidad":1107,"ventas":16636600.0},"Antipasti":{"cantidad":64,"ventas":304350.0},"Combos":{"cantidad":283,"ventas":8091700.0},"Gaseosas y Aguas":{"cantidad":101,"ventas":314100.0},"Paninos":{"cantidad":64,"ventas":793020.0},"Postres":{"cantidad":24,"ventas":150800.0},"La Grosa al Molde":{"cantidad":40,"ventas":1021500.0},"Dips":{"cantidad":14,"ventas":34800.0},"Cervezas":{"cantidad":26,"ventas":140600.0},"Pizzas Veganas":{"cantidad":5,"ventas":73000.0}},"almendras":{"keto":42,"vegan":19}}],"Alta Cordoba":[{"periodo":"2025-01","anio":2025,"mes":1,"ordenes":1138,"ventas":14976164.0,"ticket":13160.0,"canal":{"Delivery propio":{"ordenes":111,"ventas":1732704.0},"Mostrador":{"ordenes":543,"ventas":6270530.0},"PedidosYa":{"ordenes":314,"ventas":4368806.0},"Salon":{"ordenes":170,"ventas":2604124.0}},"dias":{"Lun":{"ordenes":120,"ventas":1484698.0},"Mar":{"ordenes":112,"ventas":1461746.0},"Mie":{"ordenes":201,"ventas":2654576.0},"Jue":{"ordenes":149,"ventas":1956162.0},"Vie":{"ordenes":186,"ventas":2454877.0},"Sab":{"ordenes":175,"ventas":2444943.0},"Dom":{"ordenes":195,"ventas":2519162.0}},"pizzas":{"Margarita":422,"4 quesos":118,"Diavola":130,"Napolitana":139,"Fugazza":68,"Funghi del bosco":107,"Edición Limitada - Pomodorini":27,"La nuestra":198,"Jamon & Provolone":170,"Faina":2},"combos":{"Combo La nuestra":{"ordenes":23,"ventas":285500.0},"Combo Margarita para dos":{"ordenes":4,"ventas":82400.0},"Combo Margarita":{"ordenes":30,"ventas":330000.0},"Combo Postres":{"ordenes":8,"ventas":40100.0},"Combo Focaccia  + bebida":{"ordenes":2,"ventas":19300.0}},"rubros":{"Pizzas":{"cantidad":1320,"ventas":12580030.0},"Postres":{"cantidad":123,"ventas":353400.0},"Cervezas":{"cantidad":131,"ventas":569600.0},"Focaccias":{"cantidad":78,"ventas":791810.0},"Gaseosas y Aguas":{"cantidad":267,"ventas":681550.0},"Piegatas":{"cantidad":20,"ventas":180600.0},"Combos":{"cantidad":67,"ventas":757300.0},"Dips":{"cantidad":73,"ventas":89640.0},"Antipasti":{"cantidad":118,"ventas":604810.0},"Pizzas Veganas":{"cantidad":30,"ventas":266008.0},"Tragos":{"cantidad":17,"ventas":117000.0},"Opcion":{"cantidad":6,"ventas":10960.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-02","anio":2025,"mes":2,"ordenes":1051,"ventas":15029214.0,"ticket":14300.0,"canal":{"Delivery propio":{"ordenes":121,"ventas":2004451.0},"Mostrador":{"ordenes":377,"ventas":4671342.0},"PedidosYa":{"ordenes":419,"ventas":6043096.0},"Salon":{"ordenes":134,"ventas":2310325.0}},"dias":{"Lun":{"ordenes":126,"ventas":1789820.0},"Mar":{"ordenes":99,"ventas":1312759.0},"Mie":{"ordenes":103,"ventas":1548974.0},"Jue":{"ordenes":128,"ventas":1798059.0},"Vie":{"ordenes":199,"ventas":2967850.0},"Sab":{"ordenes":189,"ventas":2874599.0},"Dom":{"ordenes":207,"ventas":2737153.0}},"pizzas":{"Margarita":490,"Jamon & Provolone":128,"4 quesos":91,"Diavola":101,"Napolitana":142,"La nuestra":210,"Fugazza":62,"Funghi del bosco":95,"Faina":30,"Edición Limitada - Pomodorini":22},"combos":{"Combo La nuestra":{"ordenes":23,"ventas":283100.0},"Combo Margarita":{"ordenes":27,"ventas":308000.0},"Combo Margarita para dos":{"ordenes":13,"ventas":272700.0},"Combo Postres":{"ordenes":10,"ventas":50600.0},"Combo Focaccia  + bebida":{"ordenes":8,"ventas":78100.0}},"rubros":{"Gaseosas y Aguas":{"cantidad":250,"ventas":610400.0},"Pizzas":{"cantidad":1295,"ventas":12495177.0},"Cervezas":{"cantidad":111,"ventas":549600.0},"Postres":{"cantidad":107,"ventas":278500.0},"Dips":{"cantidad":77,"ventas":99110.0},"Piegatas":{"cantidad":60,"ventas":565700.0},"Focaccias":{"cantidad":78,"ventas":726540.0},"Tragos":{"cantidad":19,"ventas":127500.0},"Antipasti":{"cantidad":71,"ventas":410210.0},"Combos":{"cantidad":81,"ventas":992500.0},"Pizzas Veganas":{"cantidad":30,"ventas":302153.0},"Opcion":{"cantidad":11,"ventas":28770.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-03","anio":2025,"mes":3,"ordenes":1255,"ventas":17987871.0,"ticket":14333.0,"canal":{"Delivery propio":{"ordenes":138,"ventas":2438600.0},"Mostrador":{"ordenes":506,"ventas":6244100.0},"PedidosYa":{"ordenes":501,"ventas":7287810.0},"Salon":{"ordenes":110,"ventas":2017361.0}},"dias":{"Lun":{"ordenes":151,"ventas":1893134.0},"Mar":{"ordenes":124,"ventas":1753413.0},"Mie":{"ordenes":100,"ventas":1368335.0},"Jue":{"ordenes":131,"ventas":1891756.0},"Vie":{"ordenes":241,"ventas":3459096.0},"Sab":{"ordenes":277,"ventas":4319531.5},"Dom":{"ordenes":231,"ventas":3302605.5}},"pizzas":{"La nuestra":258,"Diavola":143,"Funghi del bosco":102,"Margarita":548,"Napolitana":152,"Jamon & Provolone":127,"4 quesos":131,"Fugazza":81,"Faina":41,"Vegano - Pan de ajo":1,"Edición Limitada - Pomodorini":1},"combos":{"Combo Margarita":{"ordenes":21,"ventas":270600.0},"Combo Postres":{"ordenes":25,"ventas":141600.0},"Combo La nuestra":{"ordenes":56,"ventas":582000.0},"Combo Focaccia  + bebida":{"ordenes":10,"ventas":121000.0},"Combo Margarita para dos":{"ordenes":7,"ventas":156200.0}},"rubros":{"Pizzas":{"cantidad":1493,"ventas":15066564.0},"Gaseosas y Aguas":{"cantidad":253,"ventas":603400.0},"Antipasti":{"cantidad":103,"ventas":570600.0},"Combos":{"cantidad":119,"ventas":1271400.0},"Postres":{"cantidad":165,"ventas":341500.0},"Dips":{"cantidad":99,"ventas":120500.0},"Pizzas Veganas":{"cantidad":52,"ventas":488150.0},"Focaccias":{"cantidad":95,"ventas":856079.0},"Cervezas":{"cantidad":106,"ventas":664500.0},"Tragos":{"cantidad":6,"ventas":41500.0},"Piegatas":{"cantidad":55,"ventas":611440.0},"Opcion":{"cantidad":18,"ventas":48000.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-04","anio":2025,"mes":4,"ordenes":1084,"ventas":16129240.0,"ticket":14879.0,"canal":{"Delivery propio":{"ordenes":144,"ventas":2559080.0},"Mostrador":{"ordenes":440,"ventas":5101880.0},"PedidosYa":{"ordenes":372,"ventas":6090780.0},"Salon":{"ordenes":128,"ventas":2377500.0}},"dias":{"Lun":{"ordenes":78,"ventas":1046888.0},"Mar":{"ordenes":136,"ventas":2018583.0},"Mie":{"ordenes":148,"ventas":2195384.0},"Jue":{"ordenes":145,"ventas":2066527.0},"Vie":{"ordenes":190,"ventas":2982029.0},"Sab":{"ordenes":203,"ventas":3065527.0},"Dom":{"ordenes":184,"ventas":2754302.0}},"pizzas":{"Margarita":333,"Jamon & Provolone":118,"La nuestra":194,"Funghi del bosco":109,"4 quesos":129,"Napolitana":166,"Fugazza":68,"Diavola":163,"Faina":32,"Pizza La Roja":2,"Muzza Clasica":5},"combos":{"Combo La nuestra":{"ordenes":23,"ventas":309500.0},"Combo Margarita":{"ordenes":35,"ventas":433000.0},"Combo Focaccia  + bebida":{"ordenes":7,"ventas":83100.0},"Combo Postres":{"ordenes":14,"ventas":83000.0},"Combo Margarita para dos":{"ordenes":8,"ventas":187124.0}},"rubros":{"Pizzas":{"cantidad":1275,"ventas":13052303.0},"Antipasti":{"cantidad":89,"ventas":454250.0},"Cervezas":{"cantidad":112,"ventas":681200.0},"Focaccias":{"cantidad":57,"ventas":597580.0},"Dips":{"cantidad":62,"ventas":67440.0},"Gaseosas y Aguas":{"cantidad":263,"ventas":686320.0},"Pizzas Veganas":{"cantidad":29,"ventas":285700.0},"Combos":{"cantidad":87,"ventas":1095724.0},"Postres":{"cantidad":143,"ventas":383000.0},"Tragos":{"cantidad":13,"ventas":73000.0},"Piegatas":{"cantidad":21,"ventas":225600.0},"Opcion":{"cantidad":1,"ventas":1650.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-05","anio":2025,"mes":5,"ordenes":1046,"ventas":16190650.0,"ticket":15479.0,"canal":{"Delivery propio":{"ordenes":111,"ventas":2148659.0},"Mostrador":{"ordenes":428,"ventas":5276764.0},"PedidosYa":{"ordenes":419,"ventas":7113287.0},"Salon":{"ordenes":88,"ventas":1651940.0}},"dias":{"Lun":{"ordenes":72,"ventas":1066847.0},"Mar":{"ordenes":63,"ventas":1105564.0},"Mie":{"ordenes":118,"ventas":1914335.0},"Jue":{"ordenes":136,"ventas":2206403.0},"Vie":{"ordenes":250,"ventas":3925969.0},"Sab":{"ordenes":214,"ventas":3139197.0},"Dom":{"ordenes":193,"ventas":2832335.0}},"pizzas":{"Margarita":331,"Napolitana":128,"Jamon & Provolone":114,"La nuestra":210,"Funghi del bosco":127,"Diavola":154,"4 quesos":114,"Fugazza":69,"La Baby Rosa":14,"Faina":28,"margarita evento":1,"Pizza La Roja":3},"combos":{"Combo La nuestra":{"ordenes":28,"ventas":410100.0},"Combo Margarita":{"ordenes":19,"ventas":238600.0},"Combo Postres":{"ordenes":19,"ventas":128700.0},"Combo Margarita para dos":{"ordenes":10,"ventas":225772.0},"Combo Focaccia + Bebida":{"ordenes":2,"ventas":21600.0},"Combo Focaccia  + bebida":{"ordenes":5,"ventas":59000.0},"Combo Almuerzo":{"ordenes":3,"ventas":27000.0}},"rubros":{"Pizzas":{"cantidad":1251,"ventas":12467700.0},"Combos":{"cantidad":86,"ventas":1110772.0},"Antipasti":{"cantidad":77,"ventas":481920.0},"Gaseosas y Aguas":{"cantidad":170,"ventas":513740.0},"Focaccias":{"cantidad":82,"ventas":778800.0},"Dips":{"cantidad":60,"ventas":58280.0},"Pizzas Veganas":{"cantidad":30,"ventas":277600.0},"Postres":{"cantidad":155,"ventas":321200.0},"Cervezas":{"cantidad":62,"ventas":369196.0},"Piegatas":{"cantidad":14,"ventas":187000.0},"Tragos":{"cantidad":8,"ventas":62000.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-06","anio":2025,"mes":6,"ordenes":976,"ventas":16198686.0,"ticket":16597.0,"canal":{"Delivery propio":{"ordenes":120,"ventas":2372980.0},"Mostrador":{"ordenes":350,"ventas":4895807.0},"PedidosYa":{"ordenes":463,"ventas":8123119.0},"Salon":{"ordenes":43,"ventas":806780.0}},"dias":{"Lun":{"ordenes":114,"ventas":1736518.0},"Mar":{"ordenes":69,"ventas":1034841.0},"Mie":{"ordenes":73,"ventas":1304572.0},"Jue":{"ordenes":129,"ventas":1929838.0},"Vie":{"ordenes":182,"ventas":3039775.0},"Sab":{"ordenes":197,"ventas":3500928.0},"Dom":{"ordenes":212,"ventas":3652214.0}},"pizzas":{"Funghi del bosco":110,"Margarita":356,"Napolitana":108,"La nuestra":189,"4 quesos":104,"Diavola":143,"Fugazza":56,"Jamon & Provolone":147,"Faina":79,"Pizza La Roja":1,"Vegano - Pan de ajo":2,"Lomo y Barbacoa":13,"Muzza Clasica":2,"La Baby Rosa":1},"combos":{"Combo Margarita":{"ordenes":40,"ventas":524660.0},"Combo La nuestra":{"ordenes":26,"ventas":385328.0},"Combo Postres":{"ordenes":9,"ventas":63800.0},"Combo Almuerzo":{"ordenes":1,"ventas":4840.0},"Combo Focaccia  + bebida":{"ordenes":4,"ventas":48753.0},"Combo Margarita para dos":{"ordenes":6,"ventas":135000.0}},"rubros":{"Pizzas":{"cantidad":1235,"ventas":13018976.0},"Cervezas":{"cantidad":57,"ventas":363171.0},"Focaccias":{"cantidad":70,"ventas":707345.0},"Postres":{"cantidad":103,"ventas":338238.0},"Antipasti":{"cantidad":87,"ventas":359475.0},"Gaseosas y Aguas":{"cantidad":121,"ventas":358140.0},"Piegatas":{"cantidad":41,"ventas":392155.0},"Pizzas Veganas":{"cantidad":37,"ventas":418430.0},"Combos":{"cantidad":86,"ventas":1162381.0},"Dips":{"cantidad":43,"ventas":49726.0},"Tragos":{"cantidad":8,"ventas":60850.0}},"almendras":{"keto":0,"vegan":0}},{"periodo":"2025-07","anio":2025,"mes":7,"ordenes":931,"ventas":16011290.0,"ticket":17198.0,"canal":{"Delivery propio":{"ordenes":78,"ventas":1793618.0},"Mostrador":{"ordenes":383,"ventas":5624420.3},"PedidosYa":{"ordenes":423,"ventas":7576961.24},"Salon":{"ordenes":47,"ventas":1016290.0}},"dias":{"Lun":{"ordenes":111,"ventas":1721390.2},"Mar":{"ordenes":111,"ventas":1748033.5},"Mie":{"ordenes":117,"ventas":2133095.1},"Jue":{"ordenes":99,"ventas":1778186.0},"Vie":{"ordenes":157,"ventas":2743484.0},"Sab":{"ordenes":201,"ventas":3655261.74},"Dom":{"ordenes":135,"ventas":2231839.0}},"pizzas":{"Margarita":267,"Jamon & Provolone":137,"Napolitana":111,"La nuestra":186,"Fugazza":55,"4 quesos":107,"Funghi del bosco":87,"Diavola":124,"Faina":43,"Muzza Clasica":2,"La Rística":10,"margarita evento":2,"Vegano - Pan de ajo":2,"Lomo y Barbacoa":3},"combos":{"Combo Margarita para dos":{"ordenes":14,"ventas":315000.0},"Combo Piegata Jamon y Queso":{"ordenes":34,"ventas":320187.0},"Diavola + La Nuestra":{"ordenes":9,"ventas":184500.0},"Combo La nuestra":{"ordenes":31,"ventas":476410.0},"Combo Margarita":{"ordenes":30,"ventas":391320.0},"Jamon & Queso + La Nuestra":{"ordenes":4,"ventas":82000.0},"Combo Pan de Ajo":{"ordenes":2,"ventas":31600.0},"COMBO PIEGATA ESPECIAL":{"ordenes":4,"ventas":30360.0},"Funghi del bosco + 4 quesos":{"ordenes":2,"ventas":43000.0},"Combo Piegata Fugazza":{"ordenes":1,"ventas":7900.0},"Combo Almuerzo":{"ordenes":3,"ventas":50000.0}},"rubros":{"Gaseosas y Aguas":{"cantidad":133,"ventas":392940.0},"Combos":{"cantidad":134,"ventas":1932277.0},"Pizzas":{"cantidad":1015,"ventas":11097453.0},"Focaccias":{"cantidad":67,"ventas":664275.0},"Cervezas":{"cantidad":87,"ventas":521819.0},"Postres":{"cantidad":67,"ventas":365597.0},"Dips":{"cantidad":47,"ventas":58656.0},"Pizzas Veganas":{"cantidad":36,"ventas":378397.0},"Piegatas":{"cantidad":71,"ventas":572870.0},"Antipasti":{"cantidad":84,"ventas":360870.0},"Tragos":{"cantidad":3,"ventas":29000.0}},"almendras":{"keto":3,"vegan":0}},{"periodo":"2025-08","anio":2025,"mes":8,"ordenes":1134,"ventas":19136895.0,"ticket":16876.0,"canal":{"Delivery propio":{"ordenes":90,"ventas":2000285.0},"Mostrador":{"ordenes":414,"ventas":5951329.1},"PedidosYa":{"ordenes":565,"ventas":9798661.0},"Salon":{"ordenes":65,"ventas":1386620.0}},"dias":{"Lun":{"ordenes":82,"ventas":1359070.0},"Mar":{"ordenes":89,"ventas":1483060.0},"Mie":{"ordenes":114,"ventas":1824661.0},"Jue":{"ordenes":139,"ventas":2400123.1},"Vie":{"ordenes":257,"ventas":4364298.0},"Sab":{"ordenes":248,"ventas":4381430.0},"Dom":{"ordenes":205,"ventas":3324253.0}},"pizzas":{"Funghi del bosco":127,"Margarita":310,"Diavola":125,"Napolitana":146,"La nuestra":166,"Fugazza":66,"4 quesos":125,"Jamon & Provolone":166,"Faina":65,"margarita evento":4},"combos":{"Combo Almuerzo":{"ordenes":6,"ventas":74840.0},"Combo Margarita para dos":{"ordenes":16,"ventas":360000.0},"Jamon & Queso + La Nuestra":{"ordenes":5,"ventas":102500.0},"Combo La nuestra":{"ordenes":18,"ventas":275054.0},"Combo Margarita":{"ordenes":36,"ventas":462840.0},"Diavola + La Nuestra":{"ordenes":10,"ventas":205000.0},"Funghi del bosco + 4 quesos":{"ordenes":8,"ventas":172000.0},"Combo Piegata Jamon y Queso":{"ordenes":20,"ventas":173199.0},"COMBO PIEGATA ESPECIAL":{"ordenes":7,"ventas":53130.0},"Combo Piegata Fugazza":{"ordenes":2,"ventas":15800.0}},"rubros":{"Pizzas":{"cantidad":1170,"ventas":12105591.0},"Antipasti":{"cantidad":94,"ventas":429020.0},"Focaccias":{"cantidad":73,"ventas":720535.0},"Piegatas":{"cantidad":143,"ventas":1313565.0},"Postres":{"cantidad":56,"ventas":263847.0},"Dips":{"cantidad":59,"ventas":113710.0},"Combos":{"cantidad":128,"ventas":1894363.0},"Cervezas":{"cantidad":93,"ventas":538208.0},"Gaseosas y Aguas":{"cantidad":146,"ventas":377280.0},"Pizzas Veganas":{"cantidad":31,"ventas":306069.0},"Tragos":{"cantidad":16,"ventas":144500.0}},"almendras":{"keto":20,"vegan":1}},{"periodo":"2025-09","anio":2025,"mes":9,"ordenes":1123,"ventas":19283180.0,"ticket":17171.0,"canal":{"Delivery propio":{"ordenes":81,"ventas":1892925.0},"Mostrador":{"ordenes":323,"ventas":4824540.0},"PedidosYa":{"ordenes":663,"ventas":11361825.5},"Salon":{"ordenes":56,"ventas":1203890.0}},"dias":{"Lun":{"ordenes":106,"ventas":1820891.0},"Mar":{"ordenes":131,"ventas":2187729.5},"Mie":{"ordenes":114,"ventas":1852863.0},"Jue":{"ordenes":122,"ventas":2063074.0},"Vie":{"ordenes":208,"ventas":3990188.0},"Sab":{"ordenes":206,"ventas":3449713.0},"Dom":{"ordenes":236,"ventas":3918722.0}},"pizzas":{"Funghi del bosco":97,"La nuestra":185,"Napolitana":114,"4 quesos":115,"Fugazza":65,"Diavola":130,"Margarita":319,"Jamon & Provolone":178,"Faina":78,"Amatriciana":11,"margarita evento":6,"Pizza La Roja":1},"combos":{"Combo Margarita":{"ordenes":50,"ventas":656520.0},"Combo La nuestra":{"ordenes":12,"ventas":182534.0},"Combo Piegata Jamon y Queso":{"ordenes":25,"ventas":217500.0},"Jamon & Queso + La Nuestra":{"ordenes":11,"ventas":225500.0},"COMBO PIEGATA ESPECIAL":{"ordenes":8,"ventas":60720.0},"Diavola + La Nuestra":{"ordenes":12,"ventas":246000.0},"Funghi del bosco + 4 quesos":{"ordenes":4,"ventas":86000.0},"Combo Almuerzo":{"ordenes":4,"ventas":29680.0},"Combo Margarita para dos":{"ordenes":5,"ventas":112500.0},"Combo Focaccia  + bebida":{"ordenes":1,"ventas":12753.0}},"rubros":{"Gaseosas y Aguas":{"cantidad":158,"ventas":504800.0},"Pizzas":{"cantidad":1176,"ventas":11814737.0},"Antipasti":{"cantidad":101,"ventas":542685.0},"Cervezas":{"cantidad":79,"ventas":443542.0},"Piegatas":{"cantidad":131,"ventas":1178500.0},"Combos":{"cantidad":132,"ventas":1829707.0},"Tragos":{"cantidad":14,"ventas":163800.0},"Focaccias":{"cantidad":58,"ventas":582870.0},"Dips":{"cantidad":59,"ventas":82528.0},"Postres":{"cantidad":53,"ventas":234617.0},"Pizzas Veganas":{"cantidad":22,"ventas":251331.0}},"almendras":{"keto":54,"vegan":0}},{"periodo":"2025-10","anio":2025,"mes":10,"ordenes":1262,"ventas":21732332.0,"ticket":17221.0,"canal":{"Delivery propio":{"ordenes":63,"ventas":1402869.0},"Mostrador":{"ordenes":347,"ventas":5263924.0},"PedidosYa":{"ordenes":791,"ventas":13553039.5},"Salon":{"ordenes":61,"ventas":1512500.0}},"dias":{"Lun":{"ordenes":116,"ventas":1740183.5},"Mar":{"ordenes":127,"ventas":1864704.5},"Mie":{"ordenes":154,"ventas":2410033.0},"Jue":{"ordenes":193,"ventas":3650239.0},"Vie":{"ordenes":247,"ventas":4539423.0},"Sab":{"ordenes":214,"ventas":3927332.5},"Dom":{"ordenes":211,"ventas":3600417.0}},"pizzas":{"Margarita":407,"Jamon & Provolone":194,"Funghi del bosco":119,"4 quesos":125,"La nuestra":192,"Napolitana":149,"Fugazza":59,"Diavola":129,"Faina":73,"Burrata & Pomodoro":8,"Pizza La Roja":1,"Lomo y Barbacoa":6,"margarita evento":8,"Amatriciana":4},"combos":{"Funghi del bosco + 4 quesos":{"ordenes":8,"ventas":176900.0},"Jamon & Queso + La Nuestra":{"ordenes":14,"ventas":292600.0},"Combo Piegata Jamon y Queso":{"ordenes":15,"ventas":131849.0},"Combo Margarita para dos":{"ordenes":4,"ventas":91400.0},"Diavola + La Nuestra":{"ordenes":9,"ventas":188000.0},"Combo Margarita":{"ordenes":72,"ventas":936660.0},"Combo La nuestra":{"ordenes":31,"ventas":477710.0},"Combo Almuerzo":{"ordenes":4,"ventas":29040.0},"Combo Focaccia  + bebida":{"ordenes":2,"ventas":24600.0},"COMBO PIEGATA ESPECIAL":{"ordenes":8,"ventas":60720.0}},"rubros":{"Cervezas":{"cantidad":90,"ventas":434250.0},"Pizzas":{"cantidad":1308,"ventas":12751230.0},"Gaseosas y Aguas":{"cantidad":190,"ventas":681430.0},"Combos":{"cantidad":167,"ventas":2409479.0},"Postres":{"cantidad":54,"ventas":249528.0},"Dips":{"cantidad":51,"ventas":57180.0},"Focaccias":{"cantidad":50,"ventas":540580.0},"Piegatas":{"cantidad":155,"ventas":1646710.0},"Antipasti":{"cantidad":94,"ventas":415495.0},"Pizzas Veganas":{"cantidad":36,"ventas":365680.0},"Tragos":{"cantidad":7,"ventas":59500.0}},"almendras":{"keto":51,"vegan":2}},{"periodo":"2025-11","anio":2025,"mes":11,"ordenes":1054,"ventas":18518983.0,"ticket":17570.0,"canal":{"Delivery propio":{"ordenes":100,"ventas":2378100.0},"Mostrador":{"ordenes":359,"ventas":5588253.0},"PedidosYa":{"ordenes":527,"ventas":9042240.0},"Salon":{"ordenes":68,"ventas":1510390.0}},"dias":{"Lun":{"ordenes":103,"ventas":1834922.0},"Mar":{"ordenes":97,"ventas":1516594.0},"Mie":{"ordenes":108,"ventas":1820701.0},"Jue":{"ordenes":131,"ventas":2281903.0},"Vie":{"ordenes":196,"ventas":3672838.0},"Sab":{"ordenes":232,"ventas":4279052.0},"Dom":{"ordenes":187,"ventas":3112973.0}},"pizzas":{"Jamon & Provolone":136,"Diavola":97,"Margarita":306,"Funghi del bosco":81,"La nuestra":165,"Fugazza":50,"Napolitana":120,"4 quesos":104,"Pizza La Roja":1,"Faina":13,"margarita evento":5,"Vegano - Pan de ajo":4,"Amatriciana":1,"Lomo y Barbacoa":2,"Burrata & Pomodoro":1},"combos":{"Combo Margarita para dos":{"ordenes":9,"ventas":211200.0},"Combo Margarita":{"ordenes":47,"ventas":630350.0},"Diavola + La Nuestra":{"ordenes":7,"ventas":153900.0},"Combo La nuestra":{"ordenes":13,"ventas":212600.0},"Jamon & Queso + La Nuestra":{"ordenes":10,"ventas":218600.0},"Combo Almuerzo":{"ordenes":5,"ventas":70240.0},"Combo Piegata Jamon y Queso":{"ordenes":15,"ventas":135140.0},"Funghi del bosco + 4 quesos":{"ordenes":10,"ventas":229800.0},"COMBO PIEGATA ESPECIAL":{"ordenes":3,"ventas":26280.0},"Combo Focaccia  + bebida":{"ordenes":1,"ventas":13750.0}},"rubros":{"Pizzas":{"cantidad":981,"ventas":11124605.0},"Antipasti":{"cantidad":109,"ventas":544545.0},"Combos":{"cantidad":120,"ventas":1901860.0},"Dips":{"cantidad":32,"ventas":42900.0},"Focaccias":{"cantidad":60,"ventas":726660.0},"Postres":{"cantidad":50,"ventas":237910.0},"Piegatas":{"cantidad":120,"ventas":1334400.0},"Gaseosas y Aguas":{"cantidad":210,"ventas":718340.0},"Cervezas":{"cantidad":108,"ventas":616700.0},"Pizzas Veganas":{"cantidad":25,"ventas":245700.0},"Tragos":{"cantidad":3,"ventas":20050.0}},"almendras":{"keto":41,"vegan":5}},{"periodo":"2025-12","anio":2025,"mes":12,"ordenes":1108,"ventas":20485238.0,"ticket":18488.0,"canal":{"Delivery propio":{"ordenes":89,"ventas":2147340.0},"Mostrador":{"ordenes":386,"ventas":6579178.0},"PedidosYa":{"ordenes":555,"ventas":9643120.0},"Salon":{"ordenes":78,"ventas":2115600.0}},"dias":{"Lun":{"ordenes":160,"ventas":2923730.0},"Mar":{"ordenes":133,"ventas":2420760.0},"Mie":{"ordenes":81,"ventas":1564390.0},"Jue":{"ordenes":162,"ventas":2816414.0},"Vie":{"ordenes":202,"ventas":4333833.0},"Sab":{"ordenes":176,"ventas":2976442.0},"Dom":{"ordenes":194,"ventas":3449669.0}},"pizzas":{"Jamon & Provolone":179,"Margarita":373,"La nuestra":162,"Diavola":183,"Napolitana":133,"Funghi del bosco":94,"Di Zucca":18,"Fugazza":63,"4 quesos":120,"margarita evento":7,"Faina":20},"combos":{"Combo Piegata Jamon y Queso":{"ordenes":10,"ventas":97900.0},"Margarita + Diavola":{"ordenes":65,"ventas":1537650.0},"Combo Margarita":{"ordenes":45,"ventas":631660.0},"Jamon & Queso + La Nuestra":{"ordenes":16,"ventas":369600.0},"Combo Focaccia  + bebida":{"ordenes":2,"ventas":29000.0},"Combo La nuestra":{"ordenes":14,"ventas":241200.0},"Combo Focaccia + Bebida":{"ordenes":7,"ventas":14850.0},"Funghi del bosco + 4 quesos":{"ordenes":15,"ventas":367500.0},"Diavola + La Nuestra":{"ordenes":10,"ventas":241000.0},"Combo Almuerzo":{"ordenes":4,"ventas":65400.0},"COMBO PIEGATA ESPECIAL":{"ordenes":3,"ventas":25500.0},"Combo Margarita para dos":{"ordenes":5,"ventas":124000.0}},"rubros":{"Pizzas Veganas":{"cantidad":21,"ventas":209500.0},"Piegatas":{"cantidad":140,"ventas":1489030.0},"Pizzas":{"cantidad":1078,"ventas":12516805.0},"Gaseosas y Aguas":{"cantidad":269,"ventas":828540.0},"Cervezas":{"cantidad":116,"ventas":772700.0},"Focaccias":{"cantidad":62,"ventas":846930.0},"Postres":{"cantidad":17,"ventas":130750.0},"Dips":{"cantidad":46,"ventas":63900.0},"Combos":{"cantidad":196,"ventas":3745260.0},"Antipasti":{"cantidad":96,"ventas":508120.0},"Tragos":{"cantidad":10,"ventas":85060.0}},"almendras":{"keto":37,"vegan":0}},{"periodo":"2026-01","anio":2026,"mes":1,"ordenes":934,"ventas":17402424.0,"ticket":18632.0,"canal":{"Delivery propio":{"ordenes":77,"ventas":2079700.0},"Mostrador":{"ordenes":332,"ventas":5200077.0},"PedidosYa":{"ordenes":446,"ventas":8347037.0},"Salon":{"ordenes":79,"ventas":1775610.0}},"dias":{"Lun":{"ordenes":98,"ventas":1912817.0},"Mar":{"ordenes":104,"ventas":1814288.0},"Mie":{"ordenes":91,"ventas":1635181.0},"Jue":{"ordenes":142,"ventas":2582360.0},"Vie":{"ordenes":191,"ventas":3885534.0},"Sab":{"ordenes":145,"ventas":2570144.0},"Dom":{"ordenes":163,"ventas":3002100.0}},"pizzas":{"Diavola":195,"La nuestra":133,"Funghi del bosco":72,"Margarita":337,"Jamon & Provolone":141,"Napolitana":99,"4 quesos":95,"Di Zucca":29,"Fugazza":48,"margarita evento":6,"Vegano - Pan de ajo":1},"combos":{"Combo Piegata Jamon y Queso":{"ordenes":15,"ventas":146850.0},"Combo La nuestra":{"ordenes":12,"ventas":207000.0},"Combo Margarita":{"ordenes":31,"ventas":460800.0},"Margarita + Diavola":{"ordenes":83,"ventas":1995370.0},"Diavola + La Nuestra":{"ordenes":5,"ventas":120500.0},"Jamon & Queso + La Nuestra":{"ordenes":10,"ventas":230200.0},"Combo Focaccia + Bebida":{"ordenes":4,"ventas":6600.0},"Combo Margarita para dos":{"ordenes":5,"ventas":124000.0},"Combo Focaccia  + bebida":{"ordenes":1,"ventas":14500.0},"COMBO PIEGATA ESPECIAL":{"ordenes":1,"ventas":8500.0}},"rubros":{"Pizzas":{"cantidad":906,"ventas":11442380.0},"Pizzas Veganas":{"cantidad":20,"ventas":240200.0},"Dips":{"cantidad":40,"ventas":51300.0},"Gaseosas y Aguas":{"cantidad":233,"ventas":573910.0},"Combos":{"cantidad":167,"ventas":3314320.0},"Focaccias":{"cantidad":54,"ventas":834300.0},"Cervezas":{"cantidad":103,"ventas":735240.0},"Antipasti":{"cantidad":75,"ventas":549620.0},"Postres":{"cantidad":28,"ventas":212950.0},"Piegatas":{"cantidad":138,"ventas":1608670.0},"Tragos":{"cantidad":14,"ventas":105860.0}},"almendras":{"keto":35,"vegan":2}},{"periodo":"2026-02","anio":2026,"mes":2,"ordenes":1022,"ventas":18088975.0,"ticket":17700.0,"canal":{"Delivery propio":{"ordenes":92,"ventas":2214508.0},"Mostrador":{"ordenes":278,"ventas":4926433.0},"PedidosYa":{"ordenes":561,"ventas":8973605.0},"Salon":{"ordenes":91,"ventas":1974429.0}},"dias":{"Lun":{"ordenes":135,"ventas":2128865.0},"Mar":{"ordenes":116,"ventas":1963277.0},"Mie":{"ordenes":83,"ventas":1445510.0},"Jue":{"ordenes":128,"ventas":2272226.0},"Vie":{"ordenes":217,"ventas":3978456.0},"Sab":{"ordenes":177,"ventas":3390783.0},"Dom":{"ordenes":166,"ventas":2909858.0}},"pizzas":{"La nuestra":140,"Funghi del bosco":90,"Margarita":350,"Jamon & Provolone":160,"Napolitana":98,"Diavola":213,"4 quesos":83,"muzza porteña":7,"jamon y queso porteña":10,"fuga porteña":6,"margarita evento":5,"Fugazza":37,"Di Zucca":19,"Vegano - Pan de ajo":1},"combos":{"Margarita + Diavola":{"ordenes":109,"ventas":2636550.0},"Combo Margarita":{"ordenes":51,"ventas":743600.0},"Combo Margarita para dos":{"ordenes":5,"ventas":130900.0},"Combo La nuestra":{"ordenes":14,"ventas":249000.0},"Funghi del bosco + 4 quesos":{"ordenes":14,"ventas":414400.0},"Combo Piegata Jamon y Queso":{"ordenes":12,"ventas":120900.0},"Jamon & Queso + La Nuestra":{"ordenes":28,"ventas":710640.0},"COMBO PIEGATA ESPECIAL":{"ordenes":6,"ventas":52800.0},"Combo Almuerzo":{"ordenes":7,"ventas":96540.0},"Diavola + La Nuestra":{"ordenes":5,"ventas":177300.0},"Combo Focaccia + Bebida":{"ordenes":6,"ventas":13200.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":10500.0}},"rubros":{"Piegatas":{"cantidad":129,"ventas":1498670.0},"Pizzas":{"cantidad":829,"ventas":11026770.0},"Antipasti":{"cantidad":86,"ventas":459200.0},"Focaccias":{"cantidad":41,"ventas":630450.0},"Cervezas":{"cantidad":141,"ventas":1189470.0},"Gaseosas y Aguas":{"cantidad":238,"ventas":568870.0},"Combos":{"cantidad":258,"ventas":5356330.0},"Dips":{"cantidad":39,"ventas":43250.0},"Pizzas Veganas":{"cantidad":10,"ventas":113400.0},"Postres":{"cantidad":33,"ventas":232620.0},"Tragos":{"cantidad":14,"ventas":116260.0}},"almendras":{"keto":49,"vegan":5}},{"periodo":"2026-03","anio":2026,"mes":3,"ordenes":1191,"ventas":21008030.0,"ticket":17639.0,"canal":{"Delivery propio":{"ordenes":101,"ventas":2478695.0},"Mostrador":{"ordenes":273,"ventas":4712886.0},"PedidosYa":{"ordenes":741,"ventas":12047043.6},"Salon":{"ordenes":76,"ventas":1769405.0}},"dias":{"Lun":{"ordenes":137,"ventas":2257917.8},"Mar":{"ordenes":148,"ventas":2497962.0},"Mie":{"ordenes":104,"ventas":1562737.0},"Jue":{"ordenes":132,"ventas":2235840.0},"Vie":{"ordenes":206,"ventas":3898070.0},"Sab":{"ordenes":227,"ventas":4210149.0},"Dom":{"ordenes":237,"ventas":4345353.8}},"pizzas":{"La nuestra":170,"Fugazza":46,"Funghi del bosco":79,"Margarita":465,"Diavola":306,"Napolitana":103,"Jamon & Provolone":192,"4 quesos":92,"Di Zucca":8,"Vegano - Pan de ajo":1,"Faina":1},"combos":{"Margarita + Diavola":{"ordenes":179,"ventas":4470950.0},"Combo Almuerzo":{"ordenes":8,"ventas":101740.0},"Combo Margarita":{"ordenes":52,"ventas":776880.0},"Combo Piegata Jamon y Queso":{"ordenes":12,"ventas":124740.0},"Combo La nuestra":{"ordenes":22,"ventas":407650.0},"Funghi del bosco + 4 quesos":{"ordenes":10,"ventas":272560.0},"Jamon & Queso + La Nuestra":{"ordenes":22,"ventas":576390.0},"Combo Focaccia + Bebida":{"ordenes":9,"ventas":24500.0},"Diavola + La Nuestra":{"ordenes":6,"ventas":150400.0},"Combo Margarita para dos":{"ordenes":9,"ventas":234600.0},"Combo Focaccia  + bebida":{"ordenes":1,"ventas":15000.0},"Combo Postres":{"ordenes":1,"ventas":12650.0},"COMBO PIEGATA ESPECIAL":{"ordenes":3,"ventas":26400.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":10500.0}},"rubros":{"Pizzas":{"cantidad":935,"ventas":12334260.0},"Cervezas":{"cantidad":143,"ventas":1280990.0},"Focaccias":{"cantidad":34,"ventas":537860.0},"Piegatas":{"cantidad":170,"ventas":1862160.0},"Combos":{"cantidad":335,"ventas":7204960.0},"Gaseosas y Aguas":{"cantidad":233,"ventas":481600.0},"Postres":{"cantidad":35,"ventas":201550.0},"Dips":{"cantidad":35,"ventas":60000.0},"Antipasti":{"cantidad":102,"ventas":623210.0},"Pizzas Veganas":{"cantidad":24,"ventas":281200.0},"Tragos":{"cantidad":5,"ventas":55990.0}},"almendras":{"keto":43,"vegan":9}},{"periodo":"2026-04","anio":2026,"mes":4,"ordenes":997,"ventas":18691406.0,"ticket":18748.0,"canal":{"Delivery propio":{"ordenes":66,"ventas":1727410.0},"Mostrador":{"ordenes":232,"ventas":3924932.5},"PedidosYa":{"ordenes":663,"ventas":12086023.6},"Salon":{"ordenes":36,"ventas":953040.0}},"dias":{"Lun":{"ordenes":65,"ventas":1152912.4},"Mar":{"ordenes":89,"ventas":1585228.6},"Mie":{"ordenes":113,"ventas":2092822.2000000002},"Jue":{"ordenes":148,"ventas":2644008.6},"Vie":{"ordenes":236,"ventas":4391287.1},"Sab":{"ordenes":175,"ventas":3465285.2},"Dom":{"ordenes":171,"ventas":3359862.0}},"pizzas":{"Jamon & Provolone":170,"4 quesos":95,"Margarita":356,"Napolitana":104,"La nuestra":129,"Diavola":238,"Funghi del bosco":78,"Fugazza":52,"Di Zucca":7,"Vegano - Pan de ajo":1,"Faina":1},"combos":{"Combo Focaccia + Bebida":{"ordenes":4,"ventas":9200.0},"Jamon & Queso + La Nuestra":{"ordenes":24,"ventas":647580.0},"Combo Piegata Jamon y Queso":{"ordenes":9,"ventas":97020.0},"Margarita + Diavola":{"ordenes":144,"ventas":3531750.0},"Combo La nuestra":{"ordenes":11,"ventas":192000.0},"Combo Margarita":{"ordenes":25,"ventas":386400.0},"Diavola + La Nuestra":{"ordenes":5,"ventas":125500.0},"Marga Mosca 2x1":{"ordenes":7,"ventas":73500.0},"Funghi del bosco + 4 quesos":{"ordenes":15,"ventas":407940.0},"Combo Margarita para dos":{"ordenes":5,"ventas":140560.0},"Combo Almuerzo":{"ordenes":2,"ventas":16780.0}},"rubros":{"Pizzas":{"cantidad":794,"ventas":10934960.0},"Antipasti":{"cantidad":76,"ventas":571260.0},"Cervezas":{"cantidad":69,"ventas":585580.0},"Gaseosas y Aguas":{"cantidad":202,"ventas":680340.0},"Dips":{"cantidad":35,"ventas":64890.0},"Combos":{"cantidad":251,"ventas":5628230.0},"Postres":{"cantidad":28,"ventas":200740.0},"Piegatas":{"cantidad":198,"ventas":2355910.0},"Pizzas Veganas":{"cantidad":27,"ventas":322100.0},"Focaccias":{"cantidad":17,"ventas":235840.0},"Tragos":{"cantidad":5,"ventas":44990.0}},"almendras":{"keto":30,"vegan":4}},{"periodo":"2026-05","anio":2026,"mes":5,"ordenes":1096,"ventas":20898850.0,"ticket":19068.0,"canal":{"Delivery propio":{"ordenes":109,"ventas":2472160.0},"Mostrador":{"ordenes":263,"ventas":4655942.0},"PedidosYa":{"ordenes":700,"ventas":13219518.5},"Salon":{"ordenes":24,"ventas":551230.0}},"dias":{"Lun":{"ordenes":98,"ventas":1635243.5},"Mar":{"ordenes":65,"ventas":1205773.0},"Mie":{"ordenes":88,"ventas":1577835.5},"Jue":{"ordenes":130,"ventas":2543478.0},"Vie":{"ordenes":271,"ventas":5329769.5},"Sab":{"ordenes":216,"ventas":4292273.0},"Dom":{"ordenes":228,"ventas":4314478.0}},"pizzas":{"Jamon & Provolone":201,"4 quesos":85,"La nuestra":141,"Margarita":502,"Diavola":163,"Fugazza":67,"Funghi del bosco":66,"Napolitana":79,"Di Zucca":20,"Faina":2,"Pizza La Roja":5,"Vegano - Pan de ajo":1},"combos":{"Combo Margarita":{"ordenes":18,"ventas":292320.0},"Margarita + Diavola":{"ordenes":64,"ventas":1550650.0},"Diavola + La Nuestra":{"ordenes":6,"ventas":170900.0},"Jamon & Queso + La Nuestra":{"ordenes":31,"ventas":845810.0},"Combo Piegata Jamon y Queso":{"ordenes":6,"ventas":64910.0},"Combo Focaccia + Bebida":{"ordenes":7,"ventas":16580.0},"Combo Margarita para dos":{"ordenes":4,"ventas":128460.0},"Combo La nuestra":{"ordenes":11,"ventas":223350.0},"Funghi del bosco + 4 quesos":{"ordenes":5,"ventas":133500.0},"Combo Almuerzo":{"ordenes":3,"ventas":26500.0},"Combo Postres":{"ordenes":1,"ventas":13200.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":10500.0}},"rubros":{"Pizzas":{"cantidad":1085,"ventas":15478680.0},"Cervezas":{"cantidad":58,"ventas":460885.0},"Antipasti":{"cantidad":51,"ventas":348790.0},"Piegatas":{"cantidad":82,"ventas":852040.0},"Gaseosas y Aguas":{"cantidad":155,"ventas":476518.0},"Combos":{"cantidad":157,"ventas":3476680.0},"Postres":{"cantidad":51,"ventas":340700.0},"Dips":{"cantidad":41,"ventas":84400.0},"Pizzas Veganas":{"cantidad":33,"ventas":439110.0},"Tragos":{"cantidad":3,"ventas":33000.0},"Focaccias":{"cantidad":7,"ventas":107160.0},"Paninos":{"cantidad":119,"ventas":1313210.0}},"almendras":{"keto":36,"vegan":5}},{"periodo":"2026-06","anio":2026,"mes":6,"ordenes":862,"ventas":17846812.0,"ticket":20704.0,"canal":{"Delivery propio":{"ordenes":51,"ventas":1340135.0},"Mostrador":{"ordenes":223,"ventas":4073777.0},"PedidosYa":{"ordenes":569,"ventas":11941174.5},"Salon":{"ordenes":19,"ventas":491725.0}},"dias":{"Lun":{"ordenes":92,"ventas":1904172.1},"Mar":{"ordenes":84,"ventas":1664622.5},"Mie":{"ordenes":76,"ventas":1590195.3},"Jue":{"ordenes":90,"ventas":1980205.0},"Vie":{"ordenes":171,"ventas":3613491.5},"Sab":{"ordenes":184,"ventas":3852253.1},"Dom":{"ordenes":165,"ventas":3241872.0}},"pizzas":{"Jamon & Provolone":161,"La nuestra":137,"Margarita":319,"Funghi del bosco":54,"4 quesos":69,"Diavola":62,"La Tricolore":6,"La Dolce Peppe":1,"La argenta":17,"Napolitana":67,"Funghi":21,"Fugazza":48,"Di Zucca":7,"La Peppe":88,"Faina":10},"combos":{"Jamon & Queso + La Nuestra":{"ordenes":20,"ventas":568800.0},"Combo Margarita":{"ordenes":15,"ventas":253900.0},"Combo La nuestra":{"ordenes":10,"ventas":207760.0},"Marga Mosca 2x1":{"ordenes":2,"ventas":21000.0},"Funghi del bosco + 4 quesos":{"ordenes":3,"ventas":91050.0},"Combo Focaccia + Bebida":{"ordenes":4,"ventas":10400.0},"Margarita + Diavola":{"ordenes":7,"ventas":177050.0},"Diavola + La Nuestra":{"ordenes":8,"ventas":209800.0},"Combo Postres":{"ordenes":5,"ventas":66080.0},"Combo Almuerzo":{"ordenes":1,"ventas":11500.0},"Combo Margarita para dos":{"ordenes":8,"ventas":268500.0},"Margarita + La Peppe":{"ordenes":41,"ventas":1178800.0},"La Peppe + La Nuestra":{"ordenes":11,"ventas":332360.0}},"rubros":{"Antipasti":{"cantidad":54,"ventas":518704.0},"Cervezas":{"cantidad":37,"ventas":250600.0},"Combos":{"cantidad":135,"ventas":3397000.0},"Postres":{"cantidad":48,"ventas":288100.0},"Dips":{"cantidad":19,"ventas":39580.0},"Gaseosas y Aguas":{"cantidad":110,"ventas":340280.0},"La Grosa al Molde":{"cantidad":7,"ventas":146000.0},"Paninos":{"cantidad":169,"ventas":2022118.0},"Pizzas":{"cantidad":837,"ventas":13461050.0},"Pizzas Veganas":{"cantidad":21,"ventas":304100.0},"Piegatas":{"cantidad":46,"ventas":514360.0},"Tragos":{"cantidad":5,"ventas":56000.0}},"almendras":{"keto":41,"vegan":10}},{"periodo":"2026-07","anio":2026,"mes":7,"ordenes":923,"ventas":19217726.0,"ticket":20821.0,"canal":{"Delivery propio":{"ordenes":61,"ventas":1605150.0},"Mostrador":{"ordenes":224,"ventas":4454780.0},"PedidosYa":{"ordenes":616,"ventas":12475296.100000001},"Salon":{"ordenes":22,"ventas":682500.0}},"dias":{"Lun":{"ordenes":62,"ventas":1364059.4000000001},"Mar":{"ordenes":79,"ventas":1693809.0},"Mie":{"ordenes":113,"ventas":2455145.5},"Jue":{"ordenes":130,"ventas":2588076.6},"Vie":{"ordenes":197,"ventas":4169211.4},"Sab":{"ordenes":185,"ventas":3852378.1},"Dom":{"ordenes":157,"ventas":3095046.0999999996}},"pizzas":{"Margarita":498,"Fugazza":41,"Funghi del bosco":34,"Diavola":76,"Napolitana":54,"Jamon & Provolone":113,"4 quesos":65,"La nuestra":114,"Funghi":28,"La Peppe":77,"La Dolce Peppe":13,"Faina":16,"La Tricolore":8,"Muzza Clasica":92,"La argenta":4,"Vegano - Pan de ajo":1},"combos":{"Combo Margarita":{"ordenes":10,"ventas":177300.0},"Margarita + La Peppe":{"ordenes":50,"ventas":1465080.0},"Combo La nuestra":{"ordenes":8,"ventas":168360.0},"Margarita + Diavola":{"ordenes":13,"ventas":325000.0},"Jamon & Queso + La Nuestra":{"ordenes":11,"ventas":313200.0},"La Peppe + La Nuestra":{"ordenes":10,"ventas":307000.0},"Pizza + Bebida":{"ordenes":2,"ventas":25300.0},"Funghi del bosco + 4 quesos":{"ordenes":13,"ventas":388500.0},"Diavola + La Nuestra":{"ordenes":5,"ventas":136000.0},"Combo Margarita para dos":{"ordenes":13,"ventas":437100.0},"Combo Almuerzo":{"ordenes":2,"ventas":23000.0},"Combo Postres":{"ordenes":4,"ventas":52080.0},"Dos Muzza Clásica":{"ordenes":23,"ventas":621000.0},"Promo Margarita Estudiante":{"ordenes":3,"ventas":42000.0},"Marga Mosca 2x1":{"ordenes":1,"ventas":10500.0},"Combo Focaccia + Bebida":{"ordenes":2,"ventas":5200.0}},"rubros":{"Pizzas":{"cantidad":914,"ventas":13935480.0},"Paninos":{"cantidad":178,"ventas":2015664.0},"Gaseosas y Aguas":{"cantidad":149,"ventas":440516.0},"Combos":{"cantidad":170,"ventas":4496620.0},"Antipasti":{"cantidad":73,"ventas":451150.0},"Postres":{"cantidad":32,"ventas":161340.0},"Cervezas":{"cantidad":61,"ventas":488300.0},"Dips":{"cantidad":29,"ventas":68200.0},"La Grosa al Molde":{"cantidad":20,"ventas":446000.0},"Focaccias":{"cantidad":7,"ventas":180000.0},"Pizzas Veganas":{"cantidad":10,"ventas":149700.0},"Tragos":{"cantidad":3,"ventas":42900.0},"Piegatas":{"cantidad":22,"ventas":251680.0}},"almendras":{"keto":43,"vegan":17}},{"periodo":"2026-08","anio":2026,"mes":8,"ordenes":1256,"ventas":23423940.0,"ticket":18650.0,"canal":{"Delivery propio":{"ordenes":55,"ventas":1264215.0},"Mostrador":{"ordenes":212,"ventas":4240060.0},"PedidosYa":{"ordenes":965,"ventas":17139595.5},"Salon":{"ordenes":24,"ventas":780070.0}},"dias":{"Lun":{"ordenes":129,"ventas":2242793.9},"Mar":{"ordenes":69,"ventas":1218881.4},"Mie":{"ordenes":111,"ventas":2030745.8},"Jue":{"ordenes":145,"ventas":2557400.2},"Vie":{"ordenes":232,"ventas":4551342.5},"Sab":{"ordenes":303,"ventas":5956717.7},"Dom":{"ordenes":267,"ventas":4866059.0}},"pizzas":{"Margarita":520,"Muzza Clasica":427,"Jamon & Provolone":233,"La Peppe":135,"Fugazza":36,"4 quesos":85,"La Tricolore":16,"Funghi":29,"La Dolce Peppe":12,"Napolitana":55,"Diavola":49,"La nuestra":147,"Funghi del bosco":32,"Faina":21,"Pizza La Roja":1},"combos":{"Dos Muzza Clásica":{"ordenes":125,"ventas":3415500.0},"Margarita + La Peppe":{"ordenes":63,"ventas":1837450.0},"Pizza + Bebida":{"ordenes":53,"ventas":670450.0},"Combo Margarita":{"ordenes":11,"ventas":191800.0},"Marga Mosca 2x1":{"ordenes":6,"ventas":63000.0},"Jamon & Queso + La Nuestra":{"ordenes":24,"ventas":720900.0},"Funghi del bosco + 4 quesos":{"ordenes":18,"ventas":562650.0},"Diavola + La Nuestra":{"ordenes":6,"ventas":163200.0},"Combo Postres":{"ordenes":6,"ventas":81840.0},"La Peppe + La Nuestra":{"ordenes":14,"ventas":429800.0},"Margarita + Diavola":{"ordenes":9,"ventas":229500.0},"Combo La nuestra":{"ordenes":17,"ventas":357760.0},"Combo Margarita para dos":{"ordenes":6,"ventas":198400.0}},"rubros":{"Pizzas":{"cantidad":1206,"ventas":17595200.0},"Combos":{"cantidad":358,"ventas":8922250.0},"Antipasti":{"cantidad":90,"ventas":456820.0},"Gaseosas y Aguas":{"cantidad":211,"ventas":462248.0},"Postres":{"cantidad":51,"ventas":191160.0},"Paninos":{"cantidad":130,"ventas":1400720.0},"La Grosa al Molde":{"cantidad":22,"ventas":467200.0},"Cervezas":{"cantidad":90,"ventas":777860.0},"Dips":{"cantidad":12,"ventas":32400.0},"Pizzas Veganas":{"cantidad":7,"ventas":115820.0},"Tragos":{"cantidad":1,"ventas":5700.0},"Focaccias":{"cantidad":1,"ventas":19000.0}},"almendras":{"keto":29,"vegan":8}},{"periodo":"2026-09","anio":2026,"mes":9,"ordenes":1442,"ventas":26340968.0,"ticket":18267.0,"canal":{"Delivery propio":{"ordenes":61,"ventas":1518708.0},"Mostrador":{"ordenes":198,"ventas":3689205.0},"PedidosYa":{"ordenes":1144,"ventas":20033279.5},"Salon":{"ordenes":39,"ventas":1099775.0}},"dias":{"Lun":{"ordenes":93,"ventas":1693264.0},"Mar":{"ordenes":158,"ventas":2926340.0},"Mie":{"ordenes":154,"ventas":2610718.0},"Jue":{"ordenes":202,"ventas":3629973.0},"Vie":{"ordenes":294,"ventas":5696939.0},"Sab":{"ordenes":290,"ventas":5134495.5},"Dom":{"ordenes":251,"ventas":4649238.0}},"pizzas":{"La nuestra":115,"Muzza Clasica":710,"Nappolitana":22,"La Peppe":128,"Margarita":637,"4 quesos":61,"Jamon & Provolone":190,"Funghi del":22,"La Tricolore":23,"4 quesoss":34,"Diavola":53,"Napolitana":26,"Funghi del bosco":46,"La Dolce Peppe":12,"Fugazza":34,"Faina":58},"combos":{"Dos Muzza Clásica":{"ordenes":215,"ventas":5805000.0},"Combo Margarita para dos":{"ordenes":6,"ventas":205800.0},"Marga Mosca 2x1":{"ordenes":6,"ventas":63000.0},"Pizza + Bebida":{"ordenes":38,"ventas":480700.0},"Margarita + La Peppe":{"ordenes":71,"ventas":2128450.0},"Jamon & Queso + La Nuestra":{"ordenes":10,"ventas":313580.0},"La Peppe + La Nuestra":{"ordenes":9,"ventas":276300.0},"Funghi del bosco + 4 quesos":{"ordenes":18,"ventas":564250.0},"Combo Margarita":{"ordenes":13,"ventas":226600.0},"Margarita + Diavola":{"ordenes":1,"ventas":26500.0},"Combo La nuestra":{"ordenes":6,"ventas":128960.0},"Diavola + La Nuestra":{"ordenes":5,"ventas":140800.0},"Combo Postres":{"ordenes":2,"ventas":27280.0},"Combo Almuerzo":{"ordenes":1,"ventas":11500.0}},"rubros":{"Pizzas":{"cantidad":1447,"ventas":19974050.0},"Gaseosas y Aguas":{"cantidad":237,"ventas":546880.0},"Postres":{"cantidad":39,"ventas":248780.0},"Combos":{"cantidad":401,"ventas":10398720.0},"Dips":{"cantidad":11,"ventas":24300.0},"Antipasti":{"cantidad":110,"ventas":568120.0},"La Grosa al Molde":{"cantidad":23,"ventas":522000.0},"Paninos":{"cantidad":134,"ventas":1417120.0},"Cervezas":{"cantidad":80,"ventas":549100.0},"Pizzas Veganas":{"cantidad":8,"ventas":126860.0}},"almendras":{"keto":49,"vegan":16}},{"periodo":"2026-10","anio":2026,"mes":10,"ordenes":1380,"ventas":26867706.0,"ticket":19469.0,"canal":{"Delivery propio":{"ordenes":48,"ventas":1191535.0},"Mostrador":{"ordenes":206,"ventas":4306295.0},"PedidosYa":{"ordenes":1085,"ventas":20209576.5},"Salon":{"ordenes":41,"ventas":1160300.0}},"dias":{"Lun":{"ordenes":115,"ventas":2190027.5},"Mar":{"ordenes":106,"ventas":1897322.5},"Mie":{"ordenes":127,"ventas":2309479.0},"Jue":{"ordenes":182,"ventas":3536742.5},"Vie":{"ordenes":297,"ventas":6169364.5},"Sab":{"ordenes":309,"ventas":6406086.0},"Dom":{"ordenes":244,"ventas":4358684.5}},"pizzas":{"Muzza Clasica":589,"Margarita":627,"Diavola":53,"La Peppe":148,"Jamon & Provolone":169,"Fugazza":47,"La nuestra":117,"4 quesos":76,"Funghi del bosco":42,"Napolitana":49,"La Tricolore":16,"La Dolce Peppe":18,"Faina":54,"Funghi":24,"Pizza La Roja":3,"La Grosa Mundiale":9,"La argenta":1},"combos":{"Margarita + La Peppe":{"ordenes":102,"ventas":3158900.0},"Pizza + Bebida":{"ordenes":29,"ventas":382800.0},"Dos Muzza Clásica":{"ordenes":155,"ventas":4335000.0},"La Peppe + La Nuestra":{"ordenes":14,"ventas":450240.0},"Jamon & Queso + La Nuestra":{"ordenes":14,"ventas":433640.0},"Funghi del bosco + 4 quesos":{"ordenes":16,"ventas":530550.0},"Margarita + Diavola":{"ordenes":3,"ventas":79000.0},"Combo Margarita":{"ordenes":10,"ventas":176400.0},"Combo Postres":{"ordenes":8,"ventas":109250.0},"Diavola + La Nuestra":{"ordenes":3,"ventas":86400.0},"Combo La nuestra":{"ordenes":4,"ventas":85900.0},"Marga Mosca 2x1":{"ordenes":3,"ventas":31500.0},"Combo Margarita para dos":{"ordenes":2,"ventas":75600.0},"Combo Almuerzo":{"ordenes":2,"ventas":52000.0}},"rubros":{"Pizzas":{"cantidad":1369,"ventas":19416100.0},"Paninos":{"cantidad":107,"ventas":1162400.0},"Combos":{"cantidad":365,"ventas":9987180.0},"Gaseosas y Aguas":{"cantidad":203,"ventas":541640.0},"La Grosa al Molde":{"cantidad":35,"ventas":869700.0},"Antipasti":{"cantidad":112,"ventas":554020.0},"Cervezas":{"cantidad":71,"ventas":528040.0},"Pizzas Veganas":{"cantidad":6,"ventas":96120.0},"Postres":{"cantidad":50,"ventas":146040.0},"Dips":{"cantidad":12,"ventas":35000.0},"Tragos":{"cantidad":1,"ventas":6500.0}},"almendras":{"keto":63,"vegan":16}}]};
+
+// ── STATE ──
+// Detect last available month from data
+const _lastMes = (function(){
+  const meses2026 = (RAW?.['Nueva Cordoba'] || Object.values(RAW)[0] || [])
+    .filter(m => m.anio === 2026).map(m => m.mes);
+  return meses2026.length ? Math.max(...meses2026) : null;
+})();
+let state = { local: 'Nueva Cordoba', view: 'resumen', anio: '2026', periodo: 'todo', mes: _lastMes };
+let charts = {};
+
+// ── HELPERS ──
+const $ = id => document.getElementById(id);
+const fmt = n => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n/1e3).toFixed(0)}K` : `$${Math.round(n)}`;
+const fmtFull = n => '$' + Math.round(n).toLocaleString('es-AR');
+const fmtN = fmtFull;
+const fmtU = n => Math.round(n).toLocaleString('es-AR');
+const pct = (a,b) => b ? ((a-b)/b*100).toFixed(1) : null;
+const MESES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+const RUBRO_COLORS = {Pizzas:'#e8c547','Pizzas Veganas':'#95e1d3',Combos:'#c4773a',Piegatas:'#f38181',Focaccias:'#4ecdc4',Antipasti:'#a8e6cf',Cervezas:'#ff6b35',Postres:'#6bcb77','Gaseosas y Aguas':'#7a7568',Tragos:'#b8a0ff',Dips:'#ffb347',Congeladas:'#87ceeb',Paninos:'#d4a5f5','La Grosa al Molde':'#ff9f43'};
+const CANAL_COLORS = {
+  PedidosYa: '#ff6b35',
+  Mostrador: '#4ecdc4',
+  'Delivery propio': '#95e1d3',
+  Salon: '#f38181',
+  Rappi: '#a8e6cf',
+};
+
+function filterData(local, anio, periodo, mes) {
+  let data = RAW[local] || [];
+  const mesRange = {
+    'ene-abr': [1,4], 'may-ago': [5,8], 'sep-dic': [9,12]
+  }[periodo] || null;
+
+  return data.filter(d => {
+    if (anio === '2025' && d.anio !== 2025) return false;
+    if (anio === '2026' && d.anio !== 2026) return false;
+    if (mes !== null && d.mes !== mes) return false;
+    if (!mes && mesRange && (d.mes < mesRange[0] || d.mes > mesRange[1])) return false;
+    return true;
+  });
+}
+
+function sumData(rows) {
+  const out = { ventas: 0, ordenes: 0, canal: {}, pizzas: {}, dias: {}, combos: {}, rubros: {} };
+  for (const r of rows) {
+    out.ventas += r.ventas;
+    out.ordenes += r.ordenes;
+    for (const [c,v] of Object.entries(r.canal || {})) {
+      if (!out.canal[c]) out.canal[c] = {ordenes:0, ventas:0};
+      out.canal[c].ordenes += v.ordenes;
+      out.canal[c].ventas += v.ventas;
+    }
+    for (const [p,v] of Object.entries(r.pizzas || {})) {
+      out.pizzas[p] = (out.pizzas[p]||0) + v;
+    }
+    for (const [d,v] of Object.entries(r.dias || {})) {
+      if (!out.dias[d]) out.dias[d] = {ordenes:0, ventas:0};
+      out.dias[d].ordenes += v.ordenes;
+      out.dias[d].ventas += v.ventas;
+    }
+    for (const [c,v] of Object.entries(r.combos || {})) {
+      if (!out.combos[c]) out.combos[c] = {ordenes:0, ventas:0};
+      out.combos[c].ordenes += v.ordenes;
+      out.combos[c].ventas += v.ventas;
+    }
+    for (const [rk,v] of Object.entries(r.rubros || {})) {
+      if (!out.rubros[rk]) out.rubros[rk] = {cantidad:0, ventas:0};
+      out.rubros[rk].cantidad += v.cantidad;
+      out.rubros[rk].ventas += v.ventas;
+    }
+    out.keto = (out.keto||0) + (r.almendras?.keto||0);
+    out.vegan_alm = (out.vegan_alm||0) + (r.almendras?.vegan||0);
+  }
+  out.ticket = out.ordenes ? out.ventas / out.ordenes : 0;
+  out.total_pizzas = Object.values(out.pizzas).reduce((s,v)=>s+v,0);
+  return out;
+}
+
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+function makeChart(id, config) {
+  const el = $(id);
+  if (!el) return;
+  const ctx = el.getContext('2d');
+  charts[id] = new Chart(ctx, {
+    ...config,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1814',
+          borderColor: '#2e2b24',
+          borderWidth: 1,
+          titleColor: '#e8e4d9',
+          bodyColor: '#7a7568',
+          callbacks: {
+            label: ctx => `  ${ctx.dataset.label || ''}: ${fmtFull(ctx.parsed.y ?? ctx.parsed)}`,
+          }
+        }
+      },
+      scales: config.type === 'bar' || config.type === 'line' ? {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } }
+      } : {},
+      ...config.options
+    }
+  });
+}
+
+// ── VIEWS ──
+
+function renderResumen() {
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+
+  const showBoth = state.anio === 'ambos';
+  const mainRows = showBoth ? rows26 : filterData(state.local, state.anio, state.periodo, state.mes);
+  const main = sumData(mainRows);
+  const prev = showBoth ? d25 : null;
+
+  const vVar = prev ? pct(main.ventas, prev.ventas) : null;
+  const oVar = prev ? pct(main.ordenes, prev.ordenes) : null;
+  const tVar = prev ? pct(main.ticket, prev.ticket) : null;
+
+  const peyaVentas = main.canal['PedidosYa']?.ventas || 0;
+  const peyaPct = main.ventas ? (peyaVentas/main.ventas*100).toFixed(1) : 0;
+  const peyaPrev = prev?.canal['PedidosYa']?.ventas || 0;
+  const peyaPctPrev = prev?.ventas ? (peyaPrev/prev.ventas*100).toFixed(1) : 0;
+  const peyaDelta = prev ? (parseFloat(peyaPct) - parseFloat(peyaPctPrev)).toFixed(1) : null;
+
+  const deltaClass = v => v === null ? '' : parseFloat(v) >= 0 ? 'up' : 'down';
+  const deltaArrow = v => parseFloat(v) >= 0 ? '↑' : '↓';
+
+  // KPI row
+  const kpiPeya = parseFloat(peyaPct) >= 50 ? 'danger' : parseFloat(peyaPct) >= 45 ? '' : 'good';
+
+  let html = `
+  <div class="kpi-row">
+    <div class="kpi ${vVar && parseFloat(vVar) >= 0 ? 'good' : vVar ? 'danger' : ''}">
+      <div class="kpi-label">Ventas ${showBoth ? '2026' : state.anio}</div>
+      <div class="kpi-value">${fmt(main.ventas)}</div>
+      ${vVar ? `<div class="kpi-delta ${deltaClass(vVar)}">${deltaArrow(vVar)} ${Math.abs(vVar)}% vs 2025 (${fmt(prev.ventas)})</div>` : `<div class="kpi-sub">${fmtFull(main.ventas)}</div>`}
+    </div>
+    <div class="kpi ${oVar && parseFloat(oVar) >= 0 ? 'good' : oVar ? 'danger' : ''}">
+      <div class="kpi-label">Órdenes ${showBoth ? '2026' : state.anio}</div>
+      <div class="kpi-value">${main.ordenes.toLocaleString('es-AR')}</div>
+      ${oVar ? `<div class="kpi-delta ${deltaClass(oVar)}">${deltaArrow(oVar)} ${Math.abs(oVar)}% vs ${prev.ordenes.toLocaleString('es-AR')} en 2025</div>` : ''}
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ticket promedio</div>
+      <div class="kpi-value">${fmtFull(main.ticket)}</div>
+      ${tVar ? `<div class="kpi-delta ${deltaClass(tVar)}">${deltaArrow(tVar)} ${Math.abs(tVar)}% vs ${fmtFull(prev.ticket)} en 2025</div>` : ''}
+    </div>
+    <div class="kpi ${kpiPeya}">
+      <div class="kpi-label">PedidosYa % ventas</div>
+      <div class="kpi-value">${peyaPct}%</div>
+      ${peyaDelta !== null ? `<div class="kpi-delta ${parseFloat(peyaDelta) > 0 ? 'down' : 'up'}">${parseFloat(peyaDelta) > 0 ? '↑' : '↓'} ${Math.abs(peyaDelta)}pp vs ${peyaPctPrev}% en 2025</div>` : `<div class="kpi-sub">${fmtFull(peyaVentas)} en ventas</div>`}
+    </div>
+  </div>`;
+
+  // PeYa alert if >50%
+  if (parseFloat(peyaPct) > 50) {
+    html += `<div class="alert-strip">PedidosYa supera el 50% de ventas — canal propio (Mostrador + Delivery) por debajo del 50%.</div>`;
+  }
+
+  // Monthly chart
+  const allRows = [...rows25, ...rows26].sort((a,b) => a.periodo.localeCompare(b.periodo));
+  const labels25 = rows25.map(r => MESES[r.mes]);
+  const labels26 = rows26.map(r => MESES[r.mes]);
+
+  html += `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Ventas mensuales</span></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartVentas"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Ticket promedio mensual</span></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartTicket"></canvas></div>
+    </div>
+  </div>`;
+
+  html += `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Órdenes mensuales</span></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartOrdenes"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>% PedidosYa (ventas)</span></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartPeya"></canvas></div>
+    </div>
+  </div>`;
+
+  $('mainContent').innerHTML = html;
+
+  // Chart: ventas
+  if (showBoth) {
+    makeChart('chartVentas', {
+      type: 'bar',
+      data: {
+        labels: labels25.length >= labels26.length ? labels25 : labels26,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ventas), backgroundColor: '#2e2b24', borderColor: '#4a4840', borderWidth: 1 },
+          { label: '2026', data: rows26.map(r=>r.ventas), backgroundColor: '#e8c547', borderColor: '#e8c547', borderWidth: 0 },
+        ]
+      },
+      options: { plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } } }
+    });
+    makeChart('chartOrdenes', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ordenes), borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: rows26.map(r=>r.ordenes), borderColor: '#e8c547', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+    makeChart('chartTicket', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: rows25.map(r=>r.ticket), borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: rows26.map(r=>r.ticket), borderColor: '#c4773a', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmtFull(v) } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+    const peya25 = rows25.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    const peya26 = rows26.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    makeChart('chartPeya', {
+      type: 'line',
+      data: {
+        labels: labels25,
+        datasets: [
+          { label: '2025', data: peya25, borderColor: '#4a4840', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+          { label: '2026', data: peya26, borderColor: '#ff6b35', backgroundColor: 'transparent', tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 } } } },
+        scales: { y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => v + '%' } }, x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } } }
+      }
+    });
+  } else {
+    const rows = mainRows;
+    const labels = rows.map(r => MESES[r.mes]);
+    makeChart('chartVentas', { type: 'bar', data: { labels, datasets: [{ label: 'Ventas', data: rows.map(r=>r.ventas), backgroundColor: '#e8c547' }] } });
+    makeChart('chartOrdenes', { type: 'bar', data: { labels, datasets: [{ label: 'Órdenes', data: rows.map(r=>r.ordenes), backgroundColor: '#4ecdc4' }] } });
+    makeChart('chartTicket', { type: 'line', data: { labels, datasets: [{ label: 'Ticket', data: rows.map(r=>r.ticket), borderColor: '#c4773a', backgroundColor: 'transparent', tension: 0.3 }] }, options: { scales: { y: { ticks: { callback: v => fmtFull(v) } } } } });
+    const peya = rows.map(r => r.ventas ? ((r.canal['PedidosYa']?.ventas||0)/r.ventas*100).toFixed(1) : 0);
+    makeChart('chartPeya', { type: 'line', data: { labels, datasets: [{ label: '%PeYa', data: peya, borderColor: '#ff6b35', backgroundColor: 'transparent', tension: 0.3 }] }, options: { scales: { y: { ticks: { callback: v => v + '%' } } } } });
+  }
+}
+
+function renderCanal() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  const canales = Object.keys({...d25.canal, ...d26.canal}).sort((a,b) => (main.canal[b]?.ventas||0) - (main.canal[a]?.ventas||0));
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Mix de canal — ventas</span></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chartCanalLine"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Distribución ${anio === 'ambos' ? '2026' : anio}</span></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chartCanalDona"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle por canal ${anio === 'ambos' ? '(comparación 2025 vs 2026)' : anio}</div>
+    <table>
+      <thead><tr>
+        <th>Canal</th>
+        <th class="right">Órdenes</th>
+        <th class="right">Ventas</th>
+        <th class="right">% Ventas</th>
+        <th class="right">Ticket</th>
+        ${prev ? '<th class="right">Δ Ventas</th>' : ''}
+      </tr></thead><tbody>`;
+
+  for (const c of canales) {
+    const cv = main.canal[c] || {ordenes:0, ventas:0};
+    const pv = prev?.canal[c] || {ordenes:0, ventas:0};
+    const pctV = main.ventas ? (cv.ventas/main.ventas*100).toFixed(1) : 0;
+    const tick = cv.ordenes ? cv.ventas/cv.ordenes : 0;
+    const delta = prev ? pct(cv.ventas, pv.ventas) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td><span class="canal-pill canal-${c.replace(' ','')}">${c}</span></td>
+      <td class="right">${cv.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right">${fmtFull(cv.ventas)}</td>
+      <td class="right">${pctV}%</td>
+      <td class="right">${fmtFull(tick)}</td>
+      ${prev ? `<td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+
+  // Monthly canal evolution chart data
+  const allRows = anio === 'ambos' ? [...rows25, ...rows26].sort((a,b) => a.periodo.localeCompare(b.periodo))
+                : filterData(state.local, anio, state.periodo, state.mes);
+  const labels = allRows.map(r => (anio === 'ambos' ? r.anio + ' ' : '') + MESES[r.mes]);
+
+  $('mainContent').innerHTML = html;
+
+  // Stacked bar canal evolution
+  const datasets = canales.map(c => ({
+    label: c,
+    data: allRows.map(r => r.canal[c]?.ventas || 0),
+    backgroundColor: CANAL_COLORS[c] || '#555',
+  }));
+
+  makeChart('chartCanalLine', {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } }, tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${fmt(ctx.raw)}` } } },
+      scales: {
+        x: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 } } },
+        y: { stacked: true, grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } }
+      }
+    }
+  });
+
+  // Donut
+  makeChart('chartCanalDona', {
+    type: 'doughnut',
+    data: {
+      labels: canales,
+      datasets: [{ data: canales.map(c => main.canal[c]?.ventas || 0), backgroundColor: canales.map(c => CANAL_COLORS[c] || '#555'), borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.label}: ${fmt(ctx.raw)} (${(ctx.raw/main.ventas*100).toFixed(1)}%)` } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function renderProductos() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  const totalPizzas = main.total_pizzas || 0;
+  const totalPizzasPrev = prev?.total_pizzas || 0;
+  const ketoN = main.keto || 0;
+  const veganN = main.vegan_alm || 0;
+  const almTotal = ketoN + veganN;
+  const almPct = totalPizzas ? (almTotal/totalPizzas*100).toFixed(1) : 0;
+  const almPctPrev = totalPizzasPrev ? (((prev.keto||0)+(prev.vegan_alm||0))/totalPizzasPrev*100).toFixed(1) : null;
+
+  // Rubros sorted by ventas, excluding noise
+  const rubros = Object.entries(main.rubros)
+    .filter(([r]) => !['Productos','Otros'].includes(r))
+    .sort((a,b) => b[1].ventas - a[1].ventas);
+  const totalVentas = rubros.reduce((s,[,v]) => s+v.ventas, 0);
+
+  const SKIP_PIZZA = ['Vegano - Pan de Ajo','Vegano - Pan de ajo','margarita evento','muzza porteña','jamon y queso porteña','fuga porteña'];
+  const topPizzas = Object.entries(main.pizzas)
+    .filter(([p]) => !SKIP_PIZZA.includes(p))
+    .sort((a,b) => b[1]-a[1]).slice(0, 12);
+
+  const vDelta = prev && totalPizzasPrev ? pct(totalPizzas, totalPizzasPrev) : null;
+
+  let html = `
+  <div class="kpi-row">
+    <div class="kpi good">
+      <div class="kpi-label">Total pizzas vendidas</div>
+      <div class="kpi-value">${fmtU(totalPizzas)}</div>
+      ${vDelta !== null ? `<div class="kpi-delta ${parseFloat(vDelta)>=0?'up':'down'}">${parseFloat(vDelta)>=0?'↑':'↓'} ${Math.abs(vDelta)}% vs ${fmtU(totalPizzasPrev)} en 2025</div>` : ''}
+    </div>
+    <div class="kpi warm">
+      <div class="kpi-label">Keto — masa almendras</div>
+      <div class="kpi-value">${fmtU(ketoN)}</div>
+      <div class="kpi-sub">${totalPizzas?(ketoN/totalPizzas*100).toFixed(1):0}% del total de pizzas</div>
+    </div>
+    <div class="kpi" style="border-top-color:var(--mostrador)">
+      <div class="kpi-label">Vegana — muzz almendras</div>
+      <div class="kpi-value">${fmtU(veganN)}</div>
+      <div class="kpi-sub">${totalPizzas?(veganN/totalPizzas*100).toFixed(1):0}% del total de pizzas</div>
+    </div>
+    <div class="kpi ${parseFloat(almPct)>6?'good':''}">
+      <div class="kpi-label">Total almendras</div>
+      <div class="kpi-value">${fmtU(almTotal)}</div>
+      <div class="kpi-sub">${almPct}% del total${almPctPrev ? ` · era ${almPctPrev}% en 2025` : ''}</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title"><span>Facturación por rubro</span></div><div class="chart-wrap" style="height:240px"><canvas id="cRubros"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title"><span>Mix por rubro</span></div><div class="chart-wrap" style="height:240px"><canvas id="cRubrosDona"></canvas></div></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">Rubros — ventas y unidades ${prev ? '(2025 vs 2026)' : anio}</div>
+    <table><thead><tr>
+      <th>Rubro</th><th class="right">Uds</th><th class="right">Ventas</th><th class="right">% total</th>
+      ${prev ? '<th class="right">Uds 2025</th><th class="right">Δ ventas</th>' : ''}
+    </tr></thead><tbody>`;
+
+  for (const [r, v] of rubros) {
+    const pv = prev?.rubros[r] || {cantidad:0, ventas:0};
+    const p = totalVentas ? (v.ventas/totalVentas*100).toFixed(1) : 0;
+    const delta = prev && pv.ventas > 0 ? pct(v.ventas, pv.ventas) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td><span style="display:inline-block;padding:2px 8px;border-radius:3px;font-size:11px;background:var(--surface2);color:var(--text-muted)">${r}</span></td>
+      <td class="right">${fmtU(v.cantidad)}</td>
+      <td class="right">${fmtN(v.ventas)}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${RUBRO_COLORS[r]||'var(--accent)'}"></div></div>${p}%</div></td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${fmtU(pv.cantidad)}</td><td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  }
+
+  html += `</tbody></table></div>
+
+  <div class="chart-grid">
+    <div class="chart-card"><div class="chart-title"><span>Top pizzas — unidades</span></div><div class="chart-wrap" style="height:260px"><canvas id="cPizzas"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title"><span>Almendras — % pizzas por mes</span></div><div class="chart-wrap" style="height:260px"><canvas id="cAlm"></canvas></div></div>
+  </div>`;
+
+  $('mainContent').innerHTML = html;
+
+  const rubroNames = rubros.map(([r]) => r);
+  const legOpts = {display:true, position:'bottom', labels:{color:'#7a7568', font:{family:'DM Mono',size:10}, boxWidth:10}};
+
+  makeChart('cRubros', {type:'bar', data:{labels:rubroNames, datasets: prev ? [
+    {label:'2025', data:rubroNames.map(r=>d25.rubros[r]?.ventas||0), backgroundColor:'#2e2b24'},
+    {label:'2026', data:rubroNames.map(r=>d26.rubros[r]?.ventas||0), backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#e8c547')},
+  ] : [{label:'Ventas', data:rubroNames.map(r=>main.rubros[r]?.ventas||0), backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#e8c547')}]},
+  options:{plugins:{legend:{display:!!prev,...legOpts}}, scales:{
+    x:{grid:{color:'#1e1c18'}, ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:10}}},
+    y:{grid:{color:'#1e1c18'}, ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>fmt(v)}}
+  }}});
+
+  makeChart('cRubrosDona', {type:'doughnut', data:{labels:rubroNames, datasets:[{
+    data:rubroNames.map(r=>main.rubros[r]?.ventas||0),
+    backgroundColor:rubroNames.map(r=>RUBRO_COLORS[r]||'#555'), borderWidth:0
+  }]}, options:{plugins:{legend:{...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.label}: ${fmt(ctx.raw)}`}}}, cutout:'60%'}});
+
+  const pizzaNames = topPizzas.map(([p]) => p);
+  makeChart('cPizzas', {type:'bar', data:{labels:pizzaNames, datasets: prev ? [
+    {label:'2025', data:pizzaNames.map(p=>d25.pizzas[p]||0), backgroundColor:'#2e2b24'},
+    {label:'2026', data:pizzaNames.map(p=>d26.pizzas[p]||0), backgroundColor:'#e8c547'},
+  ] : [{label:'Uds', data:pizzaNames.map(p=>main.pizzas[p]||0), backgroundColor:'#e8c547'}]},
+  options:{indexAxis:'y', plugins:{legend:{display:!!prev,...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.dataset.label}: ${ctx.raw} uds`}}},
+  scales:{x:{grid:{color:'#1e1c18'}, ticks:{color:'#4a4840',font:{family:'DM Mono',size:10}}},
+          y:{grid:{color:'#1e1c18'}, ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:9}}}}}});
+
+  const almR = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const almLbl = almR.map(r=>(r.anio===2026?'26 ':'25 ')+MESES[r.mes]);
+  const getP = (r,tipo) => { const tp=Object.values(r.pizzas||{}).reduce((s,v)=>s+v,0); return tp>0?+((r.almendras?.[tipo]||0)/tp*100).toFixed(1):0; };
+  makeChart('cAlm', {type:'bar', data:{labels:almLbl, datasets:[
+    {label:'Keto', data:almR.map(r=>getP(r,'keto')), backgroundColor:'#c4773a', stack:'alm'},
+    {label:'Vegana alm.', data:almR.map(r=>getP(r,'vegan')), backgroundColor:'#4ecdc4', stack:'alm'},
+  ]}, options:{plugins:{legend:{...legOpts}, tooltip:{callbacks:{label:ctx=>`  ${ctx.dataset.label}: ${ctx.raw}%`}}},
+  scales:{x:{stacked:true,grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:9},maxRotation:45}},
+          y:{stacked:true,grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>v+'%'}}}}});
+}
+
+
+
+
+
+function renderCombos() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25);
+  const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+
+  // Normalize combo names: merge variants (combo Margarita + Diavola / Margarita + Diavola)
+  const NORMALIZE_COMBO = {
+    'combo margarita + diavola': 'Margarita + Diavola',
+    'margarita + diavola': 'Margarita + Diavola',
+    'combo marga para 2': 'Combo Margarita para dos',
+    'mosca 2x1 marga': 'Marga Mosca 2x1',
+    'marga mosca 2x1': 'Marga Mosca 2x1',
+    'jamon & queso + la nuestra': 'Jamon & Queso + La Nuestra',
+    'jamon y queso + la nuestra': 'Jamon & Queso + La Nuestra',
+    'combo piegata especial': 'COMBO PIEGATA ESPECIAL',
+  };
+
+  function normalizeCombos(raw) {
+    const out = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const key = NORMALIZE_COMBO[k.toLowerCase()] || k;
+      if (!out[key]) out[key] = {ordenes:0, ventas:0};
+      out[key].ordenes += v.ordenes;
+      out[key].ventas += v.ventas;
+    }
+    return out;
+  }
+
+  const mainCombos = normalizeCombos(main.combos);
+  const prevCombos = prev ? normalizeCombos(prev.combos) : null;
+
+  const sorted = Object.entries(mainCombos).sort((a,b) => b[1].ventas - a[1].ventas);
+  const top12 = sorted.slice(0, 12);
+  const totalVentas = sorted.reduce((s,[,v]) => s+v.ventas, 0);
+  const totalOrdenes = sorted.reduce((s,[,v]) => s+v.ordenes, 0);
+
+  // Monthly evolution for top 3 combos
+  const allRows = [...rows25,...rows26].sort((a,b)=>a.periodo.localeCompare(b.periodo));
+  const top3 = top12.slice(0,3).map(([k]) => k);
+
+  const COMBO_COLORS = ['#e8c547','#ff6b35','#4ecdc4','#f38181','#95e1d3','#c4773a'];
+
+  let html = `<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title"><span>Top combos — facturación ${anio === 'ambos' ? '2026' : anio}</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartCombosBar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title"><span>Evolución mensual — top 3 combos (órdenes)</span></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartCombosEvol"></canvas></div>
+    </div>
+  </div>
+  <div class="table-card">
+    <div class="table-header">Detalle de combos ${prev ? '(2025 vs 2026)' : anio} — Total ${totalOrdenes.toLocaleString('es-AR')} órdenes · ${fmtFull(totalVentas)}</div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>Combo</th>
+        <th class="right">Órdenes</th>
+        <th class="right">Ventas ($)</th>
+        <th class="right">% ventas</th>
+        <th class="right">Ticket prom.</th>
+        ${prev ? '<th class="right">Órd. 2025</th><th class="right">Δ órd.</th>' : ''}
+      </tr></thead><tbody>`;
+
+  top12.forEach(([name, val], i) => {
+    const pv = prevCombos?.[name] || {ordenes:0, ventas:0};
+    const pctV = totalVentas ? (val.ventas/totalVentas*100).toFixed(1) : 0;
+    const ticket = val.ordenes ? val.ventas/val.ordenes : 0;
+    const delta = prev && pv.ordenes > 0 ? pct(val.ordenes, pv.ordenes) : null;
+    const cls = delta !== null ? (parseFloat(delta) >= 0 ? 'up' : 'down') : 'neutral';
+    html += `<tr>
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td>${name}</td>
+      <td class="right">${val.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right">${fmtFull(val.ventas)}</td>
+      <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:#e8c547"></div></div>${pctV}%</div></td>
+      <td class="right">${fmtFull(ticket)}</td>
+      ${prev ? `<td class="right" style="color:var(--text-muted)">${pv.ordenes.toLocaleString('es-AR')}</td>
+      <td class="right"><span class="delta-badge ${cls}">${delta !== null ? (parseFloat(delta)>0?'+':'')+delta+'%' : '—'}</span></td>` : ''}
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+
+  // Bar chart combos
+  makeChart('chartCombosBar', {
+    type: 'bar',
+    data: {
+      labels: top12.map(([k]) => k.length > 28 ? k.slice(0,27)+'…' : k),
+      datasets: prev ? [
+        { label: '2025', data: top12.map(([k]) => prevCombos?.[k]?.ventas||0), backgroundColor: '#2e2b24' },
+        { label: '2026', data: top12.map(([,v]) => v.ventas), backgroundColor: '#e8c547' },
+      ] : [
+        { label: 'Ventas', data: top12.map(([,v]) => v.ventas), backgroundColor: '#e8c547' }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: !!prev, labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${fmtFull(ctx.raw)}` } }
+      },
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 }, callback: v => fmt(v) } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#e8e4d9', font: { family: 'DM Mono', size: 9 } } }
+      }
+    }
+  });
+
+  // Evol chart top 3
+  const NORM_MAP = {};
+  for (const [k,v] of Object.entries(NORMALIZE_COMBO)) NORM_MAP[k] = v;
+
+  function getComboOrdenes(row, comboName) {
+    let total = 0;
+    for (const [k,v] of Object.entries(row.combos||{})) {
+      const norm = NORM_MAP[k.toLowerCase()] || k;
+      if (norm === comboName) total += v.ordenes;
+    }
+    return total;
+  }
+
+  const evolLabels = allRows.map(r => (r.anio === 2026 ? '26 ' : '25 ') + MESES[r.mes]);
+  makeChart('chartCombosEvol', {
+    type: 'line',
+    data: {
+      labels: evolLabels,
+      datasets: top3.map((name, i) => ({
+        label: name.length > 25 ? name.slice(0,24)+'…' : name,
+        data: allRows.map(r => getComboOrdenes(r, name)),
+        borderColor: COMBO_COLORS[i],
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 3,
+      }))
+    },
+    options: {
+      plugins: {
+        legend: { display: true, position: 'bottom', labels: { color: '#7a7568', font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.raw} órd.` } }
+      },
+      scales: {
+        x: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 9 }, maxRotation: 45 } },
+        y: { grid: { color: '#1e1c18' }, ticks: { color: '#4a4840', font: { family: 'DM Mono', size: 10 } } }
+      }
+    }
+  });
+}
+
+function renderDias() {
+  const anio = state.anio === 'ambos' ? 'ambos' : state.anio;
+  const rows25 = filterData(state.local, '2025', state.periodo, state.mes);
+  const rows26 = filterData(state.local, '2026', state.periodo, state.mes);
+  const d25 = sumData(rows25); const d26 = sumData(rows26);
+  const main = anio === 'ambos' ? d26 : sumData(filterData(state.local, anio, state.periodo, state.mes));
+  const prev = anio === 'ambos' ? d25 : null;
+  const DO = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+  const totV = Object.values(main.dias).reduce((s,v)=>s+v.ventas,0);
+
+  let html = `<div class="chart-card" style="margin-bottom:16px"><div class="chart-title"><span>Ventas por día de la semana</span></div><div class="chart-wrap" style="height:210px"><canvas id="cDias"></canvas></div></div>
+  <div class="table-card"><div class="table-header">Detalle por día ${prev?'(2025 vs 2026)':anio}</div>
+  <table><thead><tr><th>Día</th><th class="right">Ventas</th><th class="right">%</th><th class="right">Órdenes</th><th class="right">Ticket</th>${prev?'<th class="right">Ventas 2025</th><th class="right">Δ</th>':''}</tr></thead><tbody>`;
+  for (const d of DO) {
+    const dv = main.dias[d]||{ordenes:0,ventas:0}; const pv = prev?.dias[d]||{ordenes:0,ventas:0};
+    const p = totV?(dv.ventas/totV*100).toFixed(1):0;
+    const tick = dv.ordenes?dv.ventas/dv.ordenes:0;
+    const delta = prev&&pv.ventas>0?pct(dv.ventas,pv.ventas):null;
+    const cls = delta!==null?(parseFloat(delta)>=0?'up':'down'):'neutral';
+    html+=`<tr><td style="font-weight:500">${d}</td><td class="right">${fmtN(dv.ventas)}</td>
+    <td class="right"><div class="bar-inline"><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:var(--accent2)"></div></div>${p}%</div></td>
+    <td class="right">${fmtU(dv.ordenes)}</td><td class="right">${fmtN(tick)}</td>
+    ${prev?`<td class="right" style="color:var(--text-muted)">${fmtN(pv.ventas)}</td><td class="right"><span class="delta-badge ${cls}">${delta!==null?(parseFloat(delta)>0?'+':'')+delta+'%':'—'}</span></td>`:''}</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  $('mainContent').innerHTML = html;
+  const legOpts = {display:!!prev,position:'bottom',labels:{color:'#7a7568',font:{family:'DM Mono',size:10},boxWidth:10}};
+  makeChart('cDias',{type:'bar',data:{labels:DO,datasets:prev?[
+    {label:'2025',data:DO.map(d=>d25.dias[d]?.ventas||0),backgroundColor:'#2e2b24'},
+    {label:'2026',data:DO.map(d=>d26.dias[d]?.ventas||0),backgroundColor:'#c4773a'},
+  ]:[{label:'Ventas',data:DO.map(d=>main.dias[d]?.ventas||0),backgroundColor:'#c4773a'}]},
+  options:{plugins:{legend:legOpts},scales:{
+    x:{grid:{color:'#1e1c18'},ticks:{color:'#e8e4d9',font:{family:'DM Mono',size:10}}},
+    y:{grid:{color:'#1e1c18'},ticks:{color:'#4a4840',font:{family:'DM Mono',size:10},callback:v=>fmt(v)}}
+  }}});
+}
+
+function render() {
+  destroyCharts();
+  const views = { resumen: renderResumen, canal: renderCanal, productos: renderProductos, combos: renderCombos, dias: renderDias };
+  (views[state.view] || renderResumen)();
+}
+
+// ── EVENT LISTENERS ──
+document.querySelectorAll('#localTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#localTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.local = t.dataset.local;
+    // Set initial UI state to match default state
+(function(){
+  document.querySelectorAll('#localTabs .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.local === state.local);
+  });
+  document.querySelectorAll('#viewTabs .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.view === state.view);
+  });
+})();
+render();
+  });
+});
+
+document.querySelectorAll('#viewTabs .tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('#viewTabs .tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.view = t.dataset.view;
+    render();
+  });
+});
+
+$('anioSelect').addEventListener('change', e => {
+  state.anio = e.target.value;
+  // Show mes selector only when single year
+  const mesCtrl = $('mesControl');
+  if (state.anio !== 'ambos') {
+    mesCtrl.style.display = 'flex';
+  } else {
+    mesCtrl.style.display = 'none';
+    state.mes = null;
+    $('mesSelect').value = '';
+  }
+  render();
+});
+
+$('periodoSelect').addEventListener('change', e => {
+  state.periodo = e.target.value;
+  state.mes = null;
+  render();
+});
+
+$('mesSelect').addEventListener('change', e => {
+  state.mes = e.target.value ? parseInt(e.target.value) : null;
+  render();
+});
+
+// Add "Todos los meses" option dynamically
+const mesEl = $('mesSelect');
+const allOpt = document.createElement('option');
+allOpt.value = '';
+allOpt.textContent = 'Todos los meses';
+mesEl.insertBefore(allOpt, mesEl.firstChild);
+// Set mes selector to match initial state
+mesEl.value = state.mes !== null ? String(state.mes) : '';
+
+// Set correct active tabs on load
+document.querySelectorAll('#localTabs .tab').forEach(t => {
+  t.classList.toggle('active', t.dataset.local === state.local);
+});
+document.querySelectorAll('#viewTabs .tab').forEach(t => {
+  t.classList.toggle('active', t.dataset.view === state.view);
+});
+
+render();
+</script>
+</body>
+</html>
